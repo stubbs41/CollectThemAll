@@ -1,0 +1,34 @@
+{
+  "extends": ["next/core-web-vitals"],
+  "root": true,
+  "env": {
+    "browser": true,
+    "es6": true,
+    "node": true
+  },
+  "rules": {
+    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "react/no-unescaped-entities": "off",
+    "@next/next/no-html-link-for-pages": "off",
+    "react-hooks/exhaustive-deps": "off",
+    "react/display-name": "off",
+    "import/no-anonymous-default-export": "off",
+    "no-console": "off"
+  },
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  },
+  "ignorePatterns": [
+    "node_modules/",
+    ".next/",
+    "out/",
+    "public/",
+    ".vercel/",
+    "coverage/",
+    "*.config.js",
+    "*.config.mjs"
+  ]
+} 

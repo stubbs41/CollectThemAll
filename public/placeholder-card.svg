@@ -1,0 +1,18 @@
+<svg width="300" height="420" xmlns="http://www.w3.org/2000/svg">
+  <!-- Card outline -->
+  <rect x="10" y="10" width="280" height="400" rx="15" fill="#f2f2f2" stroke="#ccc" stroke-width="2"/>
+  
+  <!-- Pokéball symbol -->
+  <circle cx="150" cy="150" r="70" fill="#f8f8f8" stroke="#ddd" stroke-width="2"/>
+  <circle cx="150" cy="150" r="25" fill="#e0e0e0"/>
+  <line x1="80" y1="150" x2="220" y2="150" stroke="#ddd" stroke-width="4"/>
+  
+  <!-- Missing image text -->
+  <text x="150" y="250" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#999">
+    Image Not Available
+  </text>
+  
+  <!-- Pokémon card-like elements -->
+  <rect x="30" y="300" width="240" height="30" rx="5" fill="#e8e8e8"/>
+  <rect x="30" y="340" width="240" height="50" rx="5" fill="#e8e8e8"/>
+</svg> 

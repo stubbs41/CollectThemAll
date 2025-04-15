@@ -1,0 +1,26 @@
+# Build and output directories
+.next/
+out/
+dist/
+coverage/
+
+# Dependencies
+node_modules/
+
+# Config files
+*.config.js
+*.config.mjs
+next-env.d.ts
+next.config.js
+next.config.mjs
+
+# Public files
+public/
+
+# Cache directories
+.vercel/
+.cache/
+.imageCache/
+
+# Generated files
+.DS_Store 
