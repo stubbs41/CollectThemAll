@@ -170,12 +170,12 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                 <div className="flex-shrink-0 p-1 h-[58px] text-center bg-gray-200 w-full border-t border-gray-300">
                                      <p className="text-[10px] font-medium text-gray-900 truncate leading-tight" title={card.name}>{card.name}</p>
                                      <p className="text-[9px] text-gray-600 leading-tight">{card.rarity || 'N/A'}</p>
-                                     
+
                                      {/* Use getBestAvailablePrice for better pricing fallback */}
                                      {(() => {
                                          const bestPrice = card ? getBestAvailablePrice(card.tcgplayer?.prices) : null;
                                          const isMarketPrice = card && getMarketPrice(card.tcgplayer?.prices) === bestPrice;
-                                         
+
                                          return (
                                              <div className={`mt-0.5 py-0.5 px-1 rounded ${bestPrice ? 'bg-gray-800' : 'bg-gray-500'}`}>
                                                  <p className={`text-[10px] font-bold leading-tight ${bestPrice ? 'text-yellow-300' : 'text-white'}`}>
@@ -184,7 +184,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                              </div>
                                          );
                                      })()}
-                                     
+
                                      <p className="text-[8px] text-gray-600 leading-none mt-0.5">Market Price</p>
                                 </div>
 
@@ -205,7 +205,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                             aria-label="Decrease quantity"
                                             // Disable button if quantity is 1 (or less, though shouldn't happen)
                                             // removeCardFromCollection handles removal if quantity becomes 0
-                                            disabled={isLoading || currentQuantity <= 0} 
+                                            disabled={isLoading || currentQuantity <= 0}
                                         >
                                             -
                                         </button>
@@ -228,9 +228,18 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                 {/* --- ADD QUANTITY CONTROLS END --- */}
                             </>
                         ) : (
-                            <div className="flex-1 flex items-center justify-center aspect-[5/7] bg-gray-200 rounded">
-                                <span className="text-xs text-gray-400">Empty</span>
-                            </div>
+                            <>
+                                <div className="flex-grow w-full aspect-[5/7] flex items-center justify-center bg-gray-200 rounded">
+                                    <span className="text-xs text-gray-400">Empty</span>
+                                </div>
+                                <div className="flex-shrink-0 p-1 h-[58px] text-center bg-gray-200 w-full border-t border-gray-300">
+                                    <p className="text-[10px] font-medium text-gray-400 truncate leading-tight">Empty Slot</p>
+                                    <div className="mt-0.5 py-0.5 px-1 rounded bg-gray-300">
+                                        <p className="text-[10px] font-bold leading-tight text-gray-500">No Price</p>
+                                    </div>
+                                    <p className="text-[8px] text-gray-500 leading-none mt-0.5">Market Price</p>
+                                </div>
+                            </>
                         )}
                     </div>
                 );
@@ -281,14 +290,14 @@ const CardBinder: React.FC<CardBinderProps> = ({
                      </span>
                  )
              ))}
-             
+
              {/* Direct Page Navigation */}
              <div className="flex items-center gap-1">
                 <span className="text-xs font-medium">Go to:</span>
-                <input 
-                    type="number" 
-                    min="1" 
-                    max={totalPages} 
+                <input
+                    type="number"
+                    min="1"
+                    max={totalPages}
                     className="w-14 h-8 px-2 py-1 text-xs border border-gray-300 rounded-md text-center"
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') {
@@ -318,7 +327,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
                     Go
                 </button>
              </div>
-             
+
              <button
                  onClick={goToNextPage}
                  disabled={currentPage >= totalPages || isLoading}
@@ -338,4 +347,4 @@ const CardBinder: React.FC<CardBinderProps> = ({
   );
 } // Close CardBinder component function body
 
-export default CardBinder; 
+export default CardBinder;
