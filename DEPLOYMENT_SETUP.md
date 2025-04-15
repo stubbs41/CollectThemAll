@@ -4,13 +4,13 @@ To enable automatic deployments to Vercel and Netlify when you push to GitHub, y
 
 ## GitHub Actions Secrets Setup
 
-1. Go to your GitHub repository: https://github.com/stubbs41/MyBinder
+1. Go to your GitHub repository: https://github.com/stubbs41/CollectThemAll
 2. Navigate to "Settings" > "Secrets and variables" > "Actions"
 3. Add the following secrets:
 
 ### Vercel Secrets
 
-1. `VERCEL_TOKEN`: 
+1. `VERCEL_TOKEN`:
    - Go to https://vercel.com/account/tokens
    - Create a new token with a descriptive name like "GitHub Actions"
    - Copy the token and add it as a secret in GitHub
@@ -18,12 +18,12 @@ To enable automatic deployments to Vercel and Netlify when you push to GitHub, y
 2. `VERCEL_ORG_ID`:
    - Run `vercel teams ls` or `vercel project ls` to find your team/org ID
    - For your personal account, use your Vercel username or ID from `vercel whoami`
-   - The Org ID appears to be: `team_jgIUTssNJ0eaXe9xLvY5M9cr`
+   - The Org ID is: `team_jgIUTssNJ0eaXe9xLvY5M9cr`
 
 3. `VERCEL_PROJECT_ID`:
    - Run `vercel projects ls` to see your project ID
    - Or go to Vercel dashboard and get it from project settings
-   - For your Pokémon TCG app, it appears to be: `prj_kHG3nxAe3MxJOF6vmp8YzB0R10IL`
+   - For your Pokémon TCG app, it is: `prj_E8kU3aluoguu3DbXqnOspakJXiku`
 
 ### Netlify Secrets
 
@@ -53,5 +53,4 @@ This will:
 
 ## Deployment URLs
 
-- Vercel: https://collectthis-puivbesza-ryans-projects-ee570422.vercel.app
-- Netlify: https://pokemon-card-tracker.netlify.app 
+- Vercel: https://poke-binder-ryans-projects-ee570422.vercel.app
