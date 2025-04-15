@@ -1,8 +1,8 @@
-# MyBinder - Pokémon TCG Collection Tracker
+# CollectThemAll - Pokémon TCG Collection Tracker
 
 ## About The Project
 
-MyBinder is a web application designed for Pokémon TCG collectors. It allows users to easily track the cards they **have** in their collection and the cards they **want**, explore card details, manage quantities, and share their lists with others.
+CollectThemAll is a web application designed for Pokémon TCG collectors. It allows users to easily track the cards they **have** in their collection and the cards they **want**, explore card details, manage quantities, and share their lists with others.
 
 Built with modern web technologies, it aims to provide a clean and efficient interface for managing Pokémon card collections.
 
@@ -66,8 +66,8 @@ Built with modern web technologies, it aims to provide a clean and efficient int
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/stubbs41/MyBinder.git
-    cd MyBinder
+    git clone https://github.com/stubbs41/CollectThemAll.git
+    cd CollectThemAll
     ```
 2.  **Install dependencies:**
     ```bash
