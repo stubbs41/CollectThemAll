@@ -1,32 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { mapApiCardToPokemonCard } from '@/lib/apiUtils';
-
-// Import the SDK with proper error handling
-let findCardByID: any;
-let PokemonTCG: any;
-
-try {
-  const sdk = require('pokemon-tcg-sdk-typescript/dist/sdk');
-  findCardByID = sdk.findCardByID;
-  PokemonTCG = sdk.PokemonTCG;
-} catch (error) {
-  console.error('Error importing Pokemon TCG SDK:', error);
-}
-
-// Configure the SDK with the API key (server-side only)
-const apiKey = process.env.POKEMON_TCG_API_KEY;
-
-// Make sure PokemonTCG is defined before trying to configure it
-if (apiKey && typeof PokemonTCG !== 'undefined' && PokemonTCG.configure) {
-  try {
-    PokemonTCG.configure({ apiKey });
-    console.log('Pokemon TCG SDK configured with API key');
-  } catch (error) {
-    console.error('Error configuring Pokemon TCG SDK:', error);
-  }
-} else {
-  console.warn('Pokemon TCG API Key not found or SDK not available. API rate limits may apply.');
-}
+import { getCardById, mapApiCardToPokemonCard } from '@/lib/pokemonTcgApi';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,42 +13,9 @@ export async function GET(request: NextRequest) {
 
   console.log(`/api/card-details: Fetching details for card ID: ${cardId}`);
 
-  // Check if SDK is properly initialized
-  if (!findCardByID) {
-    console.error('Pokemon TCG SDK not properly initialized');
-    return NextResponse.json({
-      error: 'Service temporarily unavailable',
-      message: 'The card service is currently unavailable. Please try again later.'
-    }, { status: 503 });
-  }
-
   try {
-    // Use the SDK to fetch card details with additional error handling
-    let apiCard;
-    try {
-      apiCard = await findCardByID(cardId);
-    } catch (sdkError) {
-      console.error(`SDK error fetching card ${cardId}:`, sdkError);
-
-      // Create a minimal fallback card with the ID
-      return NextResponse.json({
-        card: {
-          id: cardId,
-          name: 'Card data unavailable',
-          images: {
-            small: '',
-            large: ''
-          },
-          set: {
-            id: '',
-            name: 'Unknown Set',
-            series: '',
-            images: {}
-          },
-          number: '',
-        }
-      });
-    }
+    // Use our direct API client to fetch card details
+    const apiCard = await getCardById(cardId);
 
     if (!apiCard) {
       console.warn(`/api/card-details: Card with ID ${cardId} not found.`);
@@ -117,12 +57,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    // Handle 404 errors gracefully
-    if (error instanceof Error && error.message.includes('404')) {
-      console.warn(`/api/card-details: Card ${cardId} not found.`);
-      return NextResponse.json({ error: 'Card not found' }, { status: 404 });
-    }
-
     console.error(`/api/card-details: Error fetching details for card ${cardId}:`, error);
 
     // Return a minimal card object instead of an error
