@@ -3,12 +3,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { PokemonCard } from '@/lib/types';
 import { fetchCardDetails } from '@/lib/pokemonApi';
-
-// Import our new components
-import CardImage from './card/CardImage';
-import CardPricing from './card/CardPricing';
-import CardPrintSelector from './card/CardPrintSelector';
-import CardCollectionActions from './card/CardCollectionActions';
+import Image from 'next/image';
+import { getProxiedImageUrl } from '@/lib/utils';
 
 interface CardDetailModalProps {
   cardId: string | null;
@@ -115,10 +111,6 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ cardId, onClose }) =>
 
   // Safely find the selected print or fall back to the main card
   const displayedCard = prints.find(p => p && p.id === selectedPrintId) || card;
-
-  const handleSelectPrint = (printId: string) => {
-    if (printId) setSelectedPrintId(printId);
-  };
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
