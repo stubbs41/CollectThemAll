@@ -23,7 +23,8 @@ const CardCollectionActions: React.FC<CardCollectionActionsProps> = ({
     refreshCollections
   } = useCollections();
 
-  const [isAddingToCollection, setIsAddingToCollection] = useState(false);
+  const [isAddingToHave, setIsAddingToHave] = useState(false);
+  const [isAddingToWant, setIsAddingToWant] = useState(false);
   const [isRemovingFromCollection, setIsRemovingFromCollection] = useState(false);
   const [addSuccess, setAddSuccess] = useState(false);
   const [removeSuccess, setRemoveSuccess] = useState(false);
@@ -61,9 +62,14 @@ const CardCollectionActions: React.FC<CardCollectionActionsProps> = ({
   }, [card?.id, currentCardId, refreshCollections]);
 
   const handleAddToCollection = async (collectionType: CollectionType) => {
-    if (!card || isAddingToCollection || isRemovingFromCollection || isLoading) return;
+    if (!card || isAddingToHave || isAddingToWant || isRemovingFromCollection || isLoading) return;
 
-    setIsAddingToCollection(true);
+    if (collectionType === 'have') {
+      setIsAddingToHave(true);
+    } else {
+      setIsAddingToWant(true);
+    }
+
     setActionError(null);
     setAddSuccess(false);
     setRemoveSuccess(false); // Clear other messages
@@ -98,12 +104,16 @@ const CardCollectionActions: React.FC<CardCollectionActionsProps> = ({
       console.error(`Error adding card to ${collectionType} collection (component level):`, error);
       setActionError('An unexpected error occurred. Please try again.');
     } finally {
-      setIsAddingToCollection(false);
+      if (collectionType === 'have') {
+        setIsAddingToHave(false);
+      } else {
+        setIsAddingToWant(false);
+      }
     }
   };
 
   const handleRemoveFromCollection = async (collectionType: CollectionType) => {
-    if (!card || isAddingToCollection || isRemovingFromCollection || isLoading) return;
+    if (!card || isAddingToHave || isAddingToWant || isRemovingFromCollection || isLoading) return;
 
     // Check if the card is in this collection and has a quantity > 0
     const quantity = getCardQuantity(card.id, collectionType);
@@ -162,6 +172,7 @@ const CardCollectionActions: React.FC<CardCollectionActionsProps> = ({
       <div className="border-t border-b border-gray-200 py-4">
         <p className="text-amber-600 text-sm mb-2">Sign in to add cards to your collection</p>
         <button
+          type="button"
           onClick={onClose}
           className="px-4 py-2 rounded-md text-white font-medium bg-indigo-600 hover:bg-indigo-700 transition-colors"
         >
@@ -184,18 +195,20 @@ const CardCollectionActions: React.FC<CardCollectionActionsProps> = ({
           </div>
           <div className="flex items-center justify-center border-t border-gray-200 p-2">
             <button
+              type="button"
               onClick={() => handleAddToCollection('have')}
-              disabled={isAddingToCollection || isRemovingFromCollection || isLoading}
+              disabled={isAddingToHave || isAddingToWant || isRemovingFromCollection || isLoading}
               className="px-3 py-1 bg-green-500 text-white font-bold rounded-l-md hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              +
+              {isAddingToHave ? '...' : '+'}
             </button>
             <div className="px-3 py-1 bg-gray-100 min-w-[40px] text-center font-medium">
               {haveQuantity}
             </div>
             <button
+              type="button"
               onClick={() => handleRemoveFromCollection('have')}
-              disabled={isAddingToCollection || isRemovingFromCollection || isLoading || haveQuantity === 0}
+              disabled={isAddingToHave || isAddingToWant || isRemovingFromCollection || isLoading || haveQuantity === 0}
               className="px-3 py-1 bg-red-500 text-white font-bold rounded-r-md hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               -
@@ -213,18 +226,20 @@ const CardCollectionActions: React.FC<CardCollectionActionsProps> = ({
           </div>
           <div className="flex items-center justify-center border-t border-gray-200 p-2">
             <button
+              type="button"
               onClick={() => handleAddToCollection('want')}
-              disabled={isAddingToCollection || isRemovingFromCollection || isLoading}
+              disabled={isAddingToHave || isAddingToWant || isRemovingFromCollection || isLoading}
               className="px-3 py-1 bg-green-500 text-white font-bold rounded-l-md hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              +
+              {isAddingToWant ? '...' : '+'}
             </button>
             <div className="px-3 py-1 bg-gray-100 min-w-[40px] text-center font-medium">
               {wantQuantity}
             </div>
             <button
+              type="button"
               onClick={() => handleRemoveFromCollection('want')}
-              disabled={isAddingToCollection || isRemovingFromCollection || isLoading || wantQuantity === 0}
+              disabled={isAddingToHave || isAddingToWant || isRemovingFromCollection || isLoading || wantQuantity === 0}
               className="px-3 py-1 bg-red-500 text-white font-bold rounded-r-md hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               -

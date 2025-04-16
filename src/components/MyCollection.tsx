@@ -8,6 +8,7 @@ import { useCollections } from '@/context/CollectionContext';
 import CollectionImportExport from '@/components/collection/CollectionImportExport';
 import CollectionGroupSelector from '@/components/collection/CollectionGroupSelector';
 import CollectionGroupModal from '@/components/collection/CollectionGroupModal';
+import BatchCardMover from '@/components/collection/BatchCardMover';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { preloadImages } from '@/lib/utils';
@@ -45,6 +46,7 @@ export default function MyCollection() {
   const [activeType, setActiveType] = useState<CollectionType>('have');
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [groupToEdit, setGroupToEdit] = useState<{name: string, description?: string} | null>(null);
+  const [isBatchMoverOpen, setIsBatchMoverOpen] = useState(false);
 
   // State for sorting and filtering
   const [sortBy, setSortBy] = useState<SortOption>('newest');
@@ -254,12 +256,14 @@ export default function MyCollection() {
             {/* Collection Actions */}
             <div className="mt-4 flex flex-wrap gap-2">
               <button
+                type="button"
                 onClick={() => setActiveType('have')}
                 className={`px-3 py-1.5 text-sm font-medium rounded ${activeType === 'have' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
               >
                 I Have ({collectionCounts.have})
               </button>
               <button
+                type="button"
                 onClick={() => setActiveType('want')}
                 className={`px-3 py-1.5 text-sm font-medium rounded ${activeType === 'want' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
               >
@@ -268,6 +272,13 @@ export default function MyCollection() {
               <Link href="/explore" className="px-3 py-1.5 text-sm font-medium rounded bg-green-600 text-white hover:bg-green-700">
                 Add Cards
               </Link>
+              <button
+                type="button"
+                onClick={() => setIsBatchMoverOpen(true)}
+                className="px-3 py-1.5 text-sm font-medium rounded bg-amber-600 text-white hover:bg-amber-700"
+              >
+                Move Cards
+              </button>
             </div>
           </div>
 
@@ -387,6 +398,7 @@ export default function MyCollection() {
 
               {/* Remove Button */}
               <button
+                type="button"
                 onClick={() => handleRemoveCard(item.card_id, item.quantity)}
                 className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                 title="Remove from collection"
@@ -406,6 +418,17 @@ export default function MyCollection() {
         onClose={() => setIsCreateGroupModalOpen(false)}
         groupToEdit={groupToEdit}
       />
+
+      {/* Batch Card Mover */}
+      {isBatchMoverOpen && (
+        <BatchCardMover
+          onClose={() => setIsBatchMoverOpen(false)}
+          onComplete={() => {
+            setIsBatchMoverOpen(false);
+            refreshCollections();
+          }}
+        />
+      )}
     </div>
   );
 }

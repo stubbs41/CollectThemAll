@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { getProxiedImageUrl } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { useCollections } from '@/context/CollectionContext';
+import CollectionSelector from './card/CollectionSelector';
 
 interface SimpleCardDetailModalProps {
   cardId: string | null;
@@ -19,12 +20,19 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
   const [selectedPrintId, setSelectedPrintId] = useState<string | null>(null);
   const [loading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [addingToCollection, setAddingToCollection] = useState<boolean>(false);
+  const [addingToHave, setAddingToHave] = useState<boolean>(false);
+  const [addingToWant, setAddingToWant] = useState<boolean>(false);
   const [addSuccess, setAddSuccess] = useState<boolean>(false);
+  const [selectedGroup, setSelectedGroup] = useState<string>('Default');
 
   // Get auth and collection context
   const { session } = useAuth();
-  const { addCardToCollection, refreshCollections } = useCollections();
+  const { addCardToCollection, refreshCollections, activeGroup } = useCollections();
+
+  // Initialize selected group with active group
+  useEffect(() => {
+    setSelectedGroup(activeGroup);
+  }, [activeGroup]);
 
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -243,77 +251,91 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
                     </button>
                   </div>
                 ) : (
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                      disabled={addingToCollection}
-                      onClick={async () => {
-                        if (!displayedCard) return;
+                  <div className="mt-2">
+                    {/* Collection Selector */}
+                    <div className="mb-4">
+                      <CollectionSelector
+                        onSelect={setSelectedGroup}
+                        selectedGroup={selectedGroup}
+                        label="Add to Collection Group"
+                      />
+                    </div>
 
-                        setAddingToCollection(true);
-                        try {
-                          // Use the context function to add to collection
-                          const result = await addCardToCollection(
-                            displayedCard.id,
-                            displayedCard,
-                            'have'
-                          );
+                    <div className="flex gap-2">
+                      <button
+                        className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        disabled={addingToHave || addingToWant}
+                        onClick={async () => {
+                          if (!displayedCard) return;
 
-                          if (result.status === 'added' || result.status === 'updated') {
-                            setAddSuccess(true);
-                            setTimeout(() => setAddSuccess(false), 3000);
-                            // Refresh collections to update UI
-                            await refreshCollections();
-                          } else if (result.status === 'error') {
-                            alert(`Error: ${result.message || 'Failed to add card to collection'}`);
+                          setAddingToHave(true);
+                          try {
+                            // Use the context function to add to collection
+                            const result = await addCardToCollection(
+                              displayedCard.id,
+                              displayedCard,
+                              'have',
+                              selectedGroup
+                            );
+
+                            if (result.status === 'added' || result.status === 'updated') {
+                              setAddSuccess(true);
+                              setTimeout(() => setAddSuccess(false), 3000);
+                              // Refresh collections to update UI
+                              await refreshCollections();
+                            } else if (result.status === 'error') {
+                              alert(`Error: ${result.message || 'Failed to add card to collection'}`);
+                            }
+                          } catch (error) {
+                            console.error('Error adding to collection:', error);
+                            alert('Failed to add card to collection. Please try again.');
+                          } finally {
+                            setAddingToHave(false);
                           }
-                        } catch (error) {
-                          console.error('Error adding to collection:', error);
-                          alert('Failed to add card to collection. Please try again.');
-                        } finally {
-                          setAddingToCollection(false);
-                        }
-                      }}
-                    >
-                      {addingToCollection ? 'Adding...' : 'Add to Collection'}
-                    </button>
-                    <button
-                      className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                      disabled={addingToCollection}
-                      onClick={async () => {
-                        if (!displayedCard) return;
+                        }}
+                      >
+                        {addingToHave ? 'Adding...' : 'Add to Collection'}
+                      </button>
+                      <button
+                        className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        disabled={addingToHave || addingToWant}
+                        onClick={async () => {
+                          if (!displayedCard) return;
 
-                        setAddingToCollection(true);
-                        try {
-                          // Use the context function to add to wishlist
-                          const result = await addCardToCollection(
-                            displayedCard.id,
-                            displayedCard,
-                            'want'
-                          );
+                          setAddingToWant(true);
+                          try {
+                            // Use the context function to add to wishlist
+                            const result = await addCardToCollection(
+                              displayedCard.id,
+                              displayedCard,
+                              'want',
+                              selectedGroup
+                            );
 
-                          if (result.status === 'added' || result.status === 'updated') {
-                            setAddSuccess(true);
-                            setTimeout(() => setAddSuccess(false), 3000);
-                            // Refresh collections to update UI
-                            await refreshCollections();
-                          } else if (result.status === 'error') {
-                            alert(`Error: ${result.message || 'Failed to add card to wishlist'}`);
+                            if (result.status === 'added' || result.status === 'updated') {
+                              setAddSuccess(true);
+                              setTimeout(() => setAddSuccess(false), 3000);
+                              // Refresh collections to update UI
+                              await refreshCollections();
+                            } else if (result.status === 'error') {
+                              alert(`Error: ${result.message || 'Failed to add card to wishlist'}`);
+                            }
+                          } catch (error) {
+                            console.error('Error adding to wishlist:', error);
+                            alert('Failed to add card to wishlist. Please try again.');
+                          } finally {
+                            setAddingToWant(false);
                           }
-                        } catch (error) {
-                          console.error('Error adding to wishlist:', error);
-                          alert('Failed to add card to wishlist. Please try again.');
-                        } finally {
-                          setAddingToCollection(false);
-                        }
-                      }}
-                    >
-                      {addingToCollection ? 'Adding...' : 'Add to Wishlist'}
-                    </button>
+                        }}
+                      >
+                        {addingToWant ? 'Adding...' : 'Add to Wishlist'}
+                      </button>
+                    </div>
+
                     {addSuccess && (
                       <div className="mt-3 text-center">
                         <p className="text-sm text-green-600 font-medium">
-                          Card added successfully!
+                          Card added successfully to {selectedGroup}!
                         </p>
                       </div>
                     )}
