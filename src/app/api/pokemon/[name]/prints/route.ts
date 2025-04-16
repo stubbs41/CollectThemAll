@@ -1,6 +1,21 @@
 import { NextResponse } from 'next/server';
-import { findCardsByQueries, Card } from 'pokemon-tcg-sdk-typescript/dist/sdk';
+import { findCardsByQueries, Card, PokemonTCG } from 'pokemon-tcg-sdk-typescript/dist/sdk';
 import { PokemonCard, CardPrices } from '@/lib/types';
+
+// Configure the SDK with the API key (server-side only)
+const apiKey = process.env.POKEMON_TCG_API_KEY;
+
+// Make sure PokemonTCG is defined before trying to configure it
+if (apiKey && typeof PokemonTCG !== 'undefined' && PokemonTCG.configure) {
+  try {
+    PokemonTCG.configure({ apiKey });
+    console.log('Pokemon TCG SDK configured with API key');
+  } catch (error) {
+    console.error('Error configuring Pokemon TCG SDK:', error);
+  }
+} else {
+  console.warn('Pokemon TCG API Key not found or SDK not available. API rate limits may apply.');
+}
 
 // Reusable helper
 function extractPrices(apiCard: Card): CardPrices | undefined {
@@ -65,4 +80,4 @@ export async function GET(
     console.error(`Error fetching prints for ${pokemonName}:`, error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-} 
+}

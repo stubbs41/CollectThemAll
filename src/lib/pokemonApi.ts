@@ -162,7 +162,14 @@ export async function fetchCardDetails(cardId: string): Promise<PokemonCard | nu
     }
 
     const data = await response.json();
-    return data.card || null;
+    // The API now returns { card: PokemonCard } instead of just PokemonCard
+    if (data.card) {
+      return data.card;
+    } else if (data.id) {
+      // For backward compatibility, if the API returns the card directly
+      return data;
+    }
+    return null;
 
   } catch (error) {
     console.error(`Error fetching details for card ${cardId} via server API:`, error);
