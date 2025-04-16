@@ -196,18 +196,25 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
         throw new Error('Invalid import file format');
       }
 
-      // Check if import is for the correct collection type
-      if (importData.collection_type !== collectionType) {
-        throw new Error(`This import file is for a "${importData.collection_type}" collection, but you're currently viewing your "${collectionType}" collection.`);
-      }
-
       // Determine import group name
       const targetGroupName = importGroup === 'new'
         ? (importData.collection_name || importData.group_name || 'Imported Collection')
         : importGroup;
 
+      // Filter items to match the current collection type if needed
+      const filteredItems = importData.items.filter(item =>
+        item.collection_type === collectionType || item.collection_type === undefined
+      );
+
+      if (filteredItems.length === 0) {
+        throw new Error(`No ${collectionType} items found in the import file.`);
+      }
+
       // Import the collection by making API calls
-      const importCount = await importCollection(importData, targetGroupName);
+      const importCount = await importCollection({
+        ...importData,
+        items: filteredItems
+      }, targetGroupName);
 
       setSuccess(`Successfully imported ${importCount} cards to your "${targetGroupName}" collection!`);
       onImportComplete(); // Refresh the collection
@@ -250,24 +257,9 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-4">
-      <h3 className="text-lg font-medium mb-3">Import/Export Collection</h3>
+      <h3 className="text-lg font-medium mb-3">Collection Actions</h3>
 
-      <div className="mb-4">
-        <label htmlFor="export-collection-name" className="block text-sm font-medium text-gray-700 mb-1">
-          Collection Name (for export/share)
-        </label>
-        <input
-          type="text"
-          id="export-collection-name"
-          name="export-collection-name"
-          value={exportName}
-          onChange={(e) => setExportName(e.target.value)}
-          placeholder={`${groupName} ${collectionType} collection`}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-        />
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-end">
+      <div className="flex flex-wrap gap-2 mb-4">
         <button
           onClick={handleExport}
           disabled={isExporting || collection.length === 0}
@@ -276,48 +268,85 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
             collection.length === 0 ? 'bg-gray-300 cursor-not-allowed text-gray-500' :
             'bg-green-600 text-white hover:bg-green-700'
           }`}
+          title="Export your collection as a JSON file"
         >
-          {isExporting ? 'Exporting...' : 'Export Collection'}
+          {isExporting ? 'Exporting...' : 'Export'}
         </button>
 
-        {/* Share Controls */}
-        <div className="flex-1 flex gap-2 items-end">
-          <button
-            onClick={handleShare}
-            disabled={isSharing || collection.length === 0}
-            className={`w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-lg ${
-              isSharing ? 'bg-gray-400 cursor-wait' :
-              collection.length === 0 ? 'bg-gray-300 cursor-not-allowed text-gray-500' :
-              'bg-purple-600 text-white hover:bg-purple-700'
-            }`}
-          >
-            {isSharing ? 'Creating Link...' : 'Share Collection'}
-          </button>
+        <button
+          onClick={handleShare}
+          disabled={isSharing || collection.length === 0}
+          className={`px-4 py-2 text-sm font-medium rounded-lg ${
+            isSharing ? 'bg-gray-400 cursor-wait' :
+            collection.length === 0 ? 'bg-gray-300 cursor-not-allowed text-gray-500' :
+            'bg-purple-600 text-white hover:bg-purple-700'
+          }`}
+          title="Create a shareable link to your collection"
+        >
+          {isSharing ? 'Creating Link...' : 'Share'}
+        </button>
 
-          {/* Expiration Dropdown */}
-          <div className="w-full sm:w-auto">
-             <label htmlFor="share-expiration" className="block text-xs font-medium text-gray-600 mb-1">
-               Expires in:
-             </label>
-            <select
-              id="share-expiration"
-              name="share-expiration"
-              value={shareExpiration}
-              onChange={(e) => setShareExpiration(e.target.value as ExpirationValue)}
-              disabled={isSharing || collection.length === 0}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-            >
-              {expirationOptions.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
+        <button
+          id="import-collection-button"
+          onClick={handleImportClick}
+          disabled={isImporting}
+          className={`px-4 py-2 text-sm font-medium rounded-lg ${
+            isImporting ? 'bg-gray-400 cursor-wait' : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+          title="Import a collection from a JSON file"
+        >
+          {isImporting ? 'Importing...' : 'Import'}
+        </button>
+
+        <input
+          type="file"
+          accept=".json"
+          ref={fileInputRef}
+          onChange={handleFileSelect}
+          className="hidden"
+          aria-labelledby="import-collection-button"
+        />
+      </div>
+
+      {/* Configuration Options */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+        <div>
+          <label htmlFor="export-collection-name" className="block text-xs font-medium text-gray-700 mb-1">
+            Collection Name
+          </label>
+          <input
+            type="text"
+            id="export-collection-name"
+            name="export-collection-name"
+            value={exportName}
+            onChange={(e) => setExportName(e.target.value)}
+            placeholder={`${groupName} ${collectionType} collection`}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="import-group-select" className="block text-xs font-medium text-gray-700 mb-1">
+            Import Target
+          </label>
+          <select
+            id="import-group-select"
+            name="import-group-select"
+            value={importGroup}
+            onChange={(e) => setImportGroup(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          >
+            {availableGroups.map(group => (
+              <option key={group} value={group}>{group}</option>
+            ))}
+            <option value="new">Create new group from import name</option>
+          </select>
         </div>
       </div>
 
       {/* Share Link Display */}
       {shareLink && (
-        <div className="mt-3 mb-4 p-3 bg-purple-50 border border-purple-200 rounded-md">
+        <div className="mt-3 mb-3 p-3 bg-purple-50 border border-purple-200 rounded-md">
           <div className="flex items-center justify-between">
             <div className="text-sm text-purple-800 truncate">{shareLink}</div>
             <button
@@ -333,49 +362,6 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
         </div>
       )}
 
-      <div className="border-t border-gray-200 pt-4 mt-4">
-        <h4 className="text-md font-medium mb-2">Import Collection</h4>
-
-        {/* Import Group Selection */}
-        <div className="mb-4">
-          <label htmlFor="import-group-select" className="block text-sm font-medium text-gray-700 mb-1">
-            Import into group
-          </label>
-          <select
-            id="import-group-select"
-            name="import-group-select"
-            value={importGroup}
-            onChange={(e) => setImportGroup(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-          >
-            {availableGroups.map(group => (
-              <option key={group} value={group}>{group}</option>
-            ))}
-            <option value="new">Create new group from import name</option>
-          </select>
-        </div>
-
-        <button
-          id="import-collection-button"
-          onClick={handleImportClick}
-          disabled={isImporting}
-          className={`px-4 py-2 text-sm font-medium rounded-lg ${
-            isImporting ? 'bg-gray-400 cursor-wait' : 'bg-blue-600 text-white hover:bg-blue-700'
-          }`}
-        >
-          {isImporting ? 'Importing...' : 'Import Collection'}
-        </button>
-
-        <input
-          type="file"
-          accept=".json"
-          ref={fileInputRef}
-          onChange={handleFileSelect}
-          className="hidden"
-          aria-labelledby="import-collection-button"
-        />
-      </div>
-
       {error && (
         <div className="mt-3 text-sm text-red-600 p-2 bg-red-50 rounded">
           {error}
@@ -387,12 +373,6 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
           {success}
         </div>
       )}
-
-      <div className="mt-3 text-xs text-gray-500">
-        <p>Export: Download your current collection as a JSON file.</p>
-        <p>Share: Create a link to share your collection with others.</p>
-        <p>Import: Upload a previously exported collection file.</p>
-      </div>
     </div>
   );
 };

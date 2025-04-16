@@ -31,38 +31,38 @@ type SortOption = 'name' | 'newest' | 'oldest' | 'quantity' | 'price';
 
 export default function MyCollection() {
   const { session, isLoading: authLoading, setRedirectPath } = useAuth();
-  const { 
-    collections, 
-    groups, 
+  const {
+    collections,
+    groups,
     collectionGroups,
-    activeGroup, 
+    activeGroup,
     setActiveGroup,
     isLoading: collectionsLoading,
     refreshCollections
   } = useCollections();
-  
+
   const pathname = usePathname();
   const [activeType, setActiveType] = useState<CollectionType>('have');
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [groupToEdit, setGroupToEdit] = useState<{name: string, description?: string} | null>(null);
-  
+
   // State for sorting and filtering
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
-  
+
   // Handle search form submission
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setActiveFilter(searchQuery.trim());
   };
-  
+
   // Handle clearing the search
   const handleClearSearch = () => {
     setSearchQuery('');
     setActiveFilter('');
   };
-  
+
   // Get the current collection based on activeGroup and activeType
   const currentCollection = useMemo(() => {
     const collection = collections.find(
@@ -70,36 +70,36 @@ export default function MyCollection() {
     );
     return collection ? Array.from(collection.cards.values()) : [];
   }, [collections, activeGroup, activeType]);
-  
+
   // Collection statistics
   const collectionStats = useMemo(() => {
     const uniqueCards = currentCollection.length;
     const totalCards = currentCollection.reduce((sum, item) => sum + item.quantity, 0);
-    
+
     // Find recently added cards (last 7 days)
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     const recentlyAdded = currentCollection.filter(
       item => new Date(item.added_at) >= oneWeekAgo
     ).length;
-    
+
     // Calculate highest quantity card
     let highestQuantity = 0;
     let highestQuantityCard: CollectionItem | null = null;
-    
+
     currentCollection.forEach(item => {
       if (item.quantity > highestQuantity) {
         highestQuantity = item.quantity;
         highestQuantityCard = item;
       }
     });
-    
+
     // Calculate total value
     const totalValue = currentCollection.reduce(
-      (sum, item) => sum + (item.market_price || 0) * item.quantity, 
+      (sum, item) => sum + (item.market_price || 0) * item.quantity,
       0
     );
-    
+
     return {
       uniqueCards,
       totalCards,
@@ -109,7 +109,7 @@ export default function MyCollection() {
       totalValue
     };
   }, [currentCollection]);
-  
+
   // Get collection counts
   const collectionCounts = useMemo(() => {
     const haveCollection = collections.find(
@@ -118,18 +118,18 @@ export default function MyCollection() {
     const wantCollection = collections.find(
       col => col.groupName === activeGroup && col.type === 'want'
     );
-    
+
     return {
       have: haveCollection ? haveCollection.cards.size : 0,
       want: wantCollection ? wantCollection.cards.size : 0
     };
   }, [collections, activeGroup]);
-  
+
   // Apply sorting and filtering to the collection
   const filteredAndSortedCollection = useMemo(() => {
     // First apply search filter
     let result = currentCollection;
-    
+
     if (activeFilter.trim()) {
       const query = activeFilter.toLowerCase().trim();
       result = result.filter(item =>
@@ -137,7 +137,7 @@ export default function MyCollection() {
         item.card_id.toLowerCase().includes(query)
       );
     }
-    
+
     // Then apply sorting
     return [...result].sort((a, b) => {
       switch (sortBy) {
@@ -156,7 +156,7 @@ export default function MyCollection() {
       }
     });
   }, [currentCollection, activeFilter, sortBy]);
-  
+
   // Function to remove a card
   const handleRemoveCard = async (cardId: string, quantity: number) => {
     // If quantity > 1, ask if they want to remove all or just one
@@ -166,7 +166,7 @@ export default function MyCollection() {
     } else if (!confirm(`Are you sure you want to remove this card?`)) {
       return;
     }
-    
+
     try {
       const response = await fetch(`/api/collections?cardId=${encodeURIComponent(cardId)}&type=${activeType}&decrementOnly=${decrementOnly}`, {
         method: 'DELETE',
@@ -184,13 +184,13 @@ export default function MyCollection() {
       alert(`Error removing card: ${message}`); // Show error to user
     }
   };
-  
+
   // Handle opening the create group modal
   const handleOpenCreateGroupModal = () => {
     setGroupToEdit(null);
     setIsCreateGroupModalOpen(true);
   };
-  
+
   // Handle opening the edit group modal
   const handleOpenEditGroupModal = (groupName: string) => {
     const group = collectionGroups.find(g => g.name === groupName);
@@ -202,16 +202,16 @@ export default function MyCollection() {
       setIsCreateGroupModalOpen(true);
     }
   };
-  
+
   // Render logic
   if (authLoading) {
     return <div className="text-center py-10">Loading authentication...</div>;
   }
-  
+
   if (!session) {
     // Store the current path for redirect after login
     setRedirectPath(pathname);
-    
+
     return (
       <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-md border border-gray-200">
         <h2 className="text-xl font-semibold text-center text-gray-700 mb-4">Access Your Collection</h2>
@@ -220,70 +220,73 @@ export default function MyCollection() {
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-6">
       {/* Collection Group Selector */}
       <CollectionGroupSelector onCreateGroup={handleOpenCreateGroupModal} />
-      
-      {/* Header Section (Stats, Import/Export) */}
+
+      {/* Collection Overview and Actions */}
       <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-700 mb-2 md:mb-0">Collection Overview</h2>
+        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+          {/* Collection Stats */}
+          <div className="w-full md:w-2/3">
+            <h2 className="text-xl font-semibold text-gray-700 mb-3">Collection Overview</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-gray-100 p-3 rounded text-center">
+                <p className="text-sm text-gray-600">Unique Cards</p>
+                <p className="text-lg font-bold text-gray-800">{collectionStats.uniqueCards}</p>
+              </div>
+              <div className="bg-gray-100 p-3 rounded text-center">
+                <p className="text-sm text-gray-600">Total Cards</p>
+                <p className="text-lg font-bold text-gray-800">{collectionStats.totalCards}</p>
+              </div>
+              <div className="bg-gray-100 p-3 rounded text-center">
+                <p className="text-sm text-gray-600">Total Value</p>
+                <p className="text-lg font-bold text-gray-800">${collectionStats.totalValue.toFixed(2)}</p>
+              </div>
+              <div className="bg-gray-100 p-3 rounded text-center">
+                <p className="text-sm text-gray-600">Recently Added</p>
+                <p className="text-lg font-bold text-gray-800">{collectionStats.recentlyAdded}</p>
+              </div>
+            </div>
+
+            {/* Collection Actions */}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                onClick={() => setActiveType('have')}
+                className={`px-3 py-1.5 text-sm font-medium rounded ${activeType === 'have' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+              >
+                I Have ({collectionCounts.have})
+              </button>
+              <button
+                onClick={() => setActiveType('want')}
+                className={`px-3 py-1.5 text-sm font-medium rounded ${activeType === 'want' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+              >
+                I Want ({collectionCounts.want})
+              </button>
+              <Link href="/explore" className="px-3 py-1.5 text-sm font-medium rounded bg-green-600 text-white hover:bg-green-700">
+                Add Cards
+              </Link>
+            </div>
+          </div>
+
           {/* Import/Export Component */}
-          <CollectionImportExport
-            collection={currentCollection}
-            collectionType={activeType}
-            groupName={activeGroup}
-            availableGroups={groups}
-            onImportComplete={refreshCollections}
-          />
-        </div>
-        {/* Collection Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-          <div className="bg-gray-100 p-3 rounded">
-            <p className="text-sm text-gray-600">Unique Cards</p>
-            <p className="text-lg font-bold text-gray-800">{collectionStats.uniqueCards}</p>
-          </div>
-          <div className="bg-gray-100 p-3 rounded">
-            <p className="text-sm text-gray-600">Total Cards</p>
-            <p className="text-lg font-bold text-gray-800">{collectionStats.totalCards}</p>
-          </div>
-          <div className="bg-gray-100 p-3 rounded">
-            <p className="text-sm text-gray-600">Total Value</p>
-            <p className="text-lg font-bold text-gray-800">${collectionStats.totalValue.toFixed(2)}</p>
-          </div>
-          <div className="bg-gray-100 p-3 rounded">
-            <p className="text-sm text-gray-600">Highest Quantity</p>
-            <p className="text-lg font-bold text-gray-800 truncate" title={collectionStats.highestQuantityCard?.card_name || 'N/A'}>
-              {collectionStats.highestQuantity > 0
-                ? `${collectionStats.highestQuantity}x ${collectionStats.highestQuantityCard?.card_name || 'Card'}`
-                : 'N/A'}
-            </p>
+          <div className="w-full md:w-1/3">
+            <CollectionImportExport
+              collection={currentCollection}
+              collectionType={activeType}
+              groupName={activeGroup}
+              availableGroups={groups}
+              onImportComplete={refreshCollections}
+            />
           </div>
         </div>
       </div>
-      
-      {/* Collection Tabs and Filters */}
+
+      {/* Search and Sort Controls */}
       <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200 mb-4">
-          <button
-            onClick={() => setActiveType('have')}
-            className={`px-4 py-2 text-sm font-medium ${activeType === 'have' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            I Have ({collectionCounts.have})
-          </button>
-          <button
-            onClick={() => setActiveType('want')}
-            className={`px-4 py-2 text-sm font-medium ${activeType === 'want' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            I Want ({collectionCounts.want})
-          </button>
-        </div>
-        
-        {/* Search and Sort Controls */}
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
+        <div className="flex flex-col md:flex-row gap-4">
           {/* Search Form */}
           <form onSubmit={handleSearch} className="flex-grow flex gap-2">
             <input
@@ -309,9 +312,9 @@ export default function MyCollection() {
               </button>
             )}
           </form>
-          
+
           {/* Sort Dropdown */}
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 min-w-[150px]">
             <label htmlFor="sort-by" className="block text-sm font-medium text-gray-700 mb-1">
               Sort By
             </label>
@@ -329,8 +332,15 @@ export default function MyCollection() {
             </select>
           </div>
         </div>
+
+        {/* Active Filter Display */}
+        {activeFilter && (
+          <div className="mt-3 text-sm text-gray-600">
+            Showing results for: <span className="font-medium">"{activeFilter}"</span>
+          </div>
+        )}
       </div>
-      
+
       {/* Collection Grid */}
       {collectionsLoading ? (
         <div className="text-center py-10">Loading collection...</div>
@@ -364,17 +374,17 @@ export default function MyCollection() {
                   )}
                 </div>
               </Link>
-              
+
               {/* Card Details */}
               <h3 className="text-sm font-medium text-gray-800 mb-1 line-clamp-1" title={item.card_name || item.card_id}>
                 {item.card_name || item.card_id}
               </h3>
-              
+
               <div className="flex justify-between w-full text-xs text-gray-600 mt-1">
                 <span>Quantity: {item.quantity}</span>
-                <span>${(item.market_price || 0).toFixed(2)}</span>
+                <span className="font-medium">${(item.market_price || 0).toFixed(2)}</span>
               </div>
-              
+
               {/* Remove Button */}
               <button
                 onClick={() => handleRemoveCard(item.card_id, item.quantity)}
@@ -389,7 +399,7 @@ export default function MyCollection() {
           ))}
         </div>
       )}
-      
+
       {/* Collection Group Modal */}
       <CollectionGroupModal
         isOpen={isCreateGroupModalOpen}

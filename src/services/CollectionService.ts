@@ -811,6 +811,19 @@ export default class CollectionService {
     }
 
     try {
+      // First check if the collection group exists
+      const { data: groupData, error: groupError } = await this.supabase
+        .from('collection_groups')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('name', groupName)
+        .single();
+
+      if (groupError) {
+        console.error('Error checking collection group:', groupError);
+        return { success: false, error: 'Collection group not found' };
+      }
+
       // Fetch the collection data based on sharing level
       let collectionData: any[] = [];
       let collectionType = '';

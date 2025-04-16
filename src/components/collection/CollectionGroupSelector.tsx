@@ -9,33 +9,33 @@ interface CollectionGroupSelectorProps {
 }
 
 const CollectionGroupSelector: React.FC<CollectionGroupSelectorProps> = ({ onCreateGroup }) => {
-  const { 
-    groups, 
-    collectionGroups, 
-    activeGroup, 
-    setActiveGroup, 
-    deleteCollectionGroup 
+  const {
+    groups,
+    collectionGroups,
+    activeGroup,
+    setActiveGroup,
+    deleteCollectionGroup
   } = useCollections();
-  
+
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  
+
   const handleGroupChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setActiveGroup(e.target.value);
   };
-  
+
   const handleDeleteGroup = async (groupName: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     if (groupName === 'Default') {
       setDeleteError('Cannot delete the Default collection group');
       return;
     }
-    
+
     if (window.confirm(`Are you sure you want to delete the "${groupName}" collection group? This will delete all cards in this group and cannot be undone.`)) {
       setIsDeleting(groupName);
       setDeleteError(null);
-      
+
       try {
         const result = await deleteCollectionGroup(groupName);
         if (!result.success) {
@@ -49,17 +49,21 @@ const CollectionGroupSelector: React.FC<CollectionGroupSelectorProps> = ({ onCre
       }
     }
   };
-  
+
   // Find the active group info
   const activeGroupInfo = collectionGroups.find(g => g.name === activeGroup);
-  
+
   return (
-    <div className="collection-group-selector mb-4">
-      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+    <div className="bg-white p-4 rounded-lg shadow border border-gray-200 mb-4">
+      <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
         <div className="flex-grow">
-          <label htmlFor="collection-group" className="block text-sm font-medium text-gray-700 mb-1">
-            Collection Group
-          </label>
+          <div className="flex items-center gap-2 mb-2">
+            <label htmlFor="collection-group" className="text-sm font-medium text-gray-700">
+              Collection Group:
+            </label>
+            <span className="text-base font-semibold text-blue-700">{activeGroup}</span>
+          </div>
+
           <div className="flex gap-2">
             <select
               id="collection-group"
@@ -73,7 +77,7 @@ const CollectionGroupSelector: React.FC<CollectionGroupSelectorProps> = ({ onCre
                 </option>
               ))}
             </select>
-            
+
             <button
               type="button"
               onClick={onCreateGroup}
@@ -83,38 +87,38 @@ const CollectionGroupSelector: React.FC<CollectionGroupSelectorProps> = ({ onCre
               <PlusIcon className="h-4 w-4" />
             </button>
           </div>
+
+          {activeGroupInfo?.description && (
+            <div className="mt-2 text-sm text-gray-500 italic">
+              {activeGroupInfo.description}
+            </div>
+          )}
         </div>
-        
+
         {activeGroupInfo && (
           <div className="flex-shrink-0 bg-gray-100 p-3 rounded-md">
-            <h3 className="text-sm font-medium text-gray-700">Collection Value</h3>
-            <div className="grid grid-cols-3 gap-2 mt-1">
+            <h3 className="text-sm font-medium text-gray-700 mb-1">Collection Value</h3>
+            <div className="grid grid-cols-3 gap-3">
               <div className="text-center">
                 <p className="text-xs text-gray-500">I Have</p>
-                <p className="text-sm font-medium">${activeGroupInfo.have_value.toFixed(2)}</p>
+                <p className="text-sm font-bold text-blue-700">${activeGroupInfo.have_value.toFixed(2)}</p>
               </div>
               <div className="text-center">
                 <p className="text-xs text-gray-500">I Want</p>
-                <p className="text-sm font-medium">${activeGroupInfo.want_value.toFixed(2)}</p>
+                <p className="text-sm font-bold text-purple-700">${activeGroupInfo.want_value.toFixed(2)}</p>
               </div>
               <div className="text-center">
                 <p className="text-xs text-gray-500">Total</p>
-                <p className="text-sm font-medium">${activeGroupInfo.total_value.toFixed(2)}</p>
+                <p className="text-sm font-bold text-green-700">${activeGroupInfo.total_value.toFixed(2)}</p>
               </div>
             </div>
           </div>
         )}
       </div>
-      
+
       {deleteError && (
         <div className="mt-2 text-sm text-red-600">
           {deleteError}
-        </div>
-      )}
-      
-      {activeGroupInfo?.description && (
-        <div className="mt-2 text-sm text-gray-500">
-          {activeGroupInfo.description}
         </div>
       )}
     </div>
