@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { CollectionType } from '@/services/CollectionService';
+import { useCollections } from '@/context/CollectionContext';
 
 interface CollectionExportData {
   collection_type: CollectionType;
@@ -61,49 +62,60 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
   const [shareExpiration, setShareExpiration] = useState<ExpirationValue>('30d'); // Add state for expiration
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Get context functions
+  const { shareCollection: shareCollectionContext, exportCollection: exportCollectionContext, importCollection: importCollectionContext } = useCollections();
+
   // Export collection to JSON file
-  const handleExport = () => {
+  const handleExport = async () => {
     setIsExporting(true);
     setError(null);
     setSuccess(null);
 
     try {
+      // Use context function to export collection
+      const result = await exportCollectionContext(groupName, collectionType);
+
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Failed to export collection');
+      }
+
       // Format the collection data for export
       const exportData: CollectionExportData = {
         collection_type: collectionType as CollectionType,
         group_name: groupName,
         collection_name: exportName.trim() || groupName,
         exported_at: new Date().toISOString(),
-        items: collection.map(item => ({
+        items: result.data.map(item => ({
           card_id: item.card_id,
           card_name: item.card_name || null,
           card_image_small: item.card_image_small || null,
-          quantity: item.quantity
+          quantity: item.quantity,
+          market_price: item.market_price || 0
         }))
       };
 
       // Convert to JSON
       const jsonData = JSON.stringify(exportData, null, 2);
-      
+
       // Create a blob and download link
       const blob = new Blob([jsonData], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-      
+
       // Create and trigger download
       const a = document.createElement('a');
       a.href = url;
       a.download = `pokemon-collection-${exportName || groupName}-${collectionType}-${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
-      
+
       // Cleanup
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
+
       setSuccess('Collection exported successfully!');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error exporting collection:', err);
-      setError('Failed to export collection. Please try again.');
+      setError(err.message || 'Failed to export collection. Please try again.');
     } finally {
       setIsExporting(false);
       // Clear success message after 3 seconds
@@ -119,43 +131,28 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
     setShareLink(null); // Clear previous link
 
     try {
-      // Format the collection data for sharing
-      const shareData = {
-        collection_type: collectionType as CollectionType,
-        group_name: groupName,
-        collection_name: exportName.trim() || groupName,
-        items: collection.map(item => ({
-          card_id: item.card_id,
-          card_name: item.card_name || null,
-          card_image_small: item.card_image_small || null,
-          quantity: item.quantity
-        })),
-        expires_in: shareExpiration // Pass selected expiration
-      };
-
-      // Create share endpoint
-      const response = await fetch('/api/collections/share', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(shareData),
-      });
-
-      if (!response.ok) {
-        // Read detailed error message if possible
-        let errorMessage = 'Failed to create a shareable link';
-        try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorMessage;
-        } catch { /* Ignore JSON parsing errors */ }
-        throw new Error(errorMessage);
+      // Calculate expiration days
+      let expirationDays = 30; // Default
+      switch (shareExpiration) {
+        case '1h': expirationDays = 1/24; break;
+        case '1d': expirationDays = 1; break;
+        case '7d': expirationDays = 7; break;
+        case '30d': expirationDays = 30; break;
+        case 'never': expirationDays = 365 * 10; break; // 10 years
       }
 
-      const data = await response.json();
-      setShareLink(data.shareUrl);
-      setSuccess(`Share link created! Expires: ${expirationOptions.find(opt => opt.value === shareExpiration)?.label || 'Default'}`);
+      // Use context function to share collection
+      const sharingLevel = collectionType === 'have' ? 'have' : 'want';
+      const result = await shareCollectionContext(groupName, sharingLevel, expirationDays);
 
+      if (result.success && result.shareId) {
+        // Construct share URL
+        const shareUrl = `${window.location.origin}/shared/${result.shareId}`;
+        setShareLink(shareUrl);
+        setSuccess(`Share link created! Expires: ${expirationOptions.find(opt => opt.value === shareExpiration)?.label || 'Default'}`);
+      } else {
+        throw new Error(result.error || 'Failed to create a shareable link');
+      }
     } catch (err: any) {
       console.error('Error creating share link:', err);
       setError(err.message || 'Failed to create a shareable link. Please try again.');
@@ -193,28 +190,28 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
       // Read the file
       const fileContent = await readFileAsText(file);
       const importData = JSON.parse(fileContent) as CollectionExportData;
-      
+
       // Validate the imported data
       if (!importData.collection_type || !Array.isArray(importData.items)) {
         throw new Error('Invalid import file format');
       }
-      
+
       // Check if import is for the correct collection type
       if (importData.collection_type !== collectionType) {
         throw new Error(`This import file is for a "${importData.collection_type}" collection, but you're currently viewing your "${collectionType}" collection.`);
       }
-      
+
       // Determine import group name
-      const targetGroupName = importGroup === 'new' 
+      const targetGroupName = importGroup === 'new'
         ? (importData.collection_name || importData.group_name || 'Imported Collection')
         : importGroup;
-      
+
       // Import the collection by making API calls
       const importCount = await importCollection(importData, targetGroupName);
-      
+
       setSuccess(`Successfully imported ${importCount} cards to your "${targetGroupName}" collection!`);
       onImportComplete(); // Refresh the collection
-      
+
     } catch (err: any) {
       console.error('Error importing collection:', err);
       setError(err.message || 'Failed to import collection. Please check the file format and try again.');
@@ -237,38 +234,24 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
     });
   };
 
-  // Import collection by making API calls
+  // Import collection using context
   const importCollection = async (importData: CollectionExportData, targetGroupName: string): Promise<number> => {
-    let importCount = 0;
-    
-    // Call the API to bulk import cards
-    const response = await fetch('/api/collections/bulk-import', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        collection_type: importData.collection_type,
-        group_name: targetGroupName,
-        items: importData.items
-      }),
-    });
+    // Use context function to import collection
+    const createNewGroup = targetGroupName !== groupName && !availableGroups.includes(targetGroupName);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    const result = await importCollectionContext(importData.items, targetGroupName, createNewGroup);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to import collection');
     }
 
-    const data = await response.json();
-    importCount = data.importedCount || 0;
-    
-    return importCount;
+    return importData.items.length;
   };
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-4">
       <h3 className="text-lg font-medium mb-3">Import/Export Collection</h3>
-      
+
       <div className="mb-4">
         <label htmlFor="export-collection-name" className="block text-sm font-medium text-gray-700 mb-1">
           Collection Name (for export/share)
@@ -283,7 +266,7 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
         />
       </div>
-      
+
       <div className="flex flex-col sm:flex-row gap-3 mb-4 items-end">
         <button
           onClick={handleExport}
@@ -296,7 +279,7 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
         >
           {isExporting ? 'Exporting...' : 'Export Collection'}
         </button>
-        
+
         {/* Share Controls */}
         <div className="flex-1 flex gap-2 items-end">
           <button
@@ -310,7 +293,7 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
           >
             {isSharing ? 'Creating Link...' : 'Share Collection'}
           </button>
-          
+
           {/* Expiration Dropdown */}
           <div className="w-full sm:w-auto">
              <label htmlFor="share-expiration" className="block text-xs font-medium text-gray-600 mb-1">
@@ -352,7 +335,7 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
 
       <div className="border-t border-gray-200 pt-4 mt-4">
         <h4 className="text-md font-medium mb-2">Import Collection</h4>
-        
+
         {/* Import Group Selection */}
         <div className="mb-4">
           <label htmlFor="import-group-select" className="block text-sm font-medium text-gray-700 mb-1">
@@ -371,7 +354,7 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
             <option value="new">Create new group from import name</option>
           </select>
         </div>
-        
+
         <button
           id="import-collection-button"
           onClick={handleImportClick}
@@ -382,7 +365,7 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
         >
           {isImporting ? 'Importing...' : 'Import Collection'}
         </button>
-        
+
         <input
           type="file"
           accept=".json"
@@ -392,19 +375,19 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
           aria-labelledby="import-collection-button"
         />
       </div>
-      
+
       {error && (
         <div className="mt-3 text-sm text-red-600 p-2 bg-red-50 rounded">
           {error}
         </div>
       )}
-      
+
       {success && (
         <div className="mt-3 text-sm text-green-600 p-2 bg-green-50 rounded">
           {success}
         </div>
       )}
-      
+
       <div className="mt-3 text-xs text-gray-500">
         <p>Export: Download your current collection as a JSON file.</p>
         <p>Share: Create a link to share your collection with others.</p>
@@ -414,4 +397,4 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
   );
 };
 
-export default CollectionImportExport; 
+export default CollectionImportExport;

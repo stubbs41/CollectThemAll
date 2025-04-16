@@ -9,6 +9,42 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      collection_groups: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          description: string | null
+          created_at: string
+          updated_at: string
+          have_value: number
+          want_value: number
+          total_value: number
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+          have_value?: number
+          want_value?: number
+          total_value?: number
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+          have_value?: number
+          want_value?: number
+          total_value?: number
+        }
+        Relationships: []
+      }
       collections: {
         Row: {
           added_at: string
@@ -20,6 +56,7 @@ export type Database = {
           id: string
           quantity: number
           user_id: string
+          market_price: number
         }
         Insert: {
           added_at?: string
@@ -31,6 +68,7 @@ export type Database = {
           id?: string
           quantity?: number
           user_id: string
+          market_price?: number
         }
         Update: {
           added_at?: string
@@ -42,6 +80,7 @@ export type Database = {
           id?: string
           quantity?: number
           user_id?: string
+          market_price?: number
         }
         Relationships: []
       }
@@ -58,6 +97,7 @@ export type Database = {
           status: string
           user_id: string
           view_count: number
+          sharing_level: string
         }
         Insert: {
           collection_name: string
@@ -71,6 +111,7 @@ export type Database = {
           status?: string
           user_id: string
           view_count?: number
+          sharing_level?: string
         }
         Update: {
           collection_name?: string
@@ -84,6 +125,7 @@ export type Database = {
           status?: string
           user_id?: string
           view_count?: number
+          sharing_level?: string
         }
         Relationships: []
       }
