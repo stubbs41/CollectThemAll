@@ -4,7 +4,7 @@
 import React, { useState } from 'react'; // Only import what's actually used
 import Image from 'next/image';
 import { PokemonCard } from '@/lib/types'; // Removed CardPrices import
-import CardDetailModal from './CardDetailModal'; // Import the modal component
+import SimpleCardDetailModal from './SimpleCardDetailModal'; // Import the simplified modal component
 import { formatPrice, getMarketPrice, getBestAvailablePrice, getProxiedImageUrl } from '@/lib/utils'; // Import from utils
 import { useCollections } from '@/context/CollectionContext'; // Import context hook
 import { useAuth } from '@/context/AuthContext'; // Import auth context
@@ -343,7 +343,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
          {session && <p className="text-xs text-gray-500 mt-2">Green border indicates cards you own. Purple border indicates cards you want. Click any slot for details.</p>}
          {!session && <p className="text-xs text-gray-500 mt-2">Sign in to track your collection. Click any card for details.</p>}
 
-         <CardDetailModal cardId={selectedCardId} onClose={handleCloseModal} />
+         <SimpleCardDetailModal cardId={selectedCardId} onClose={handleCloseModal} />
     </div>
   );
 } // Close CardBinder component function body
