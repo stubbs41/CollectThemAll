@@ -5,6 +5,7 @@
  */
 
 import { PokemonCard, CardPrices } from '@/lib/types';
+import { getWithExpiry, setWithExpiry, CACHE_TIMES, CACHE_KEYS, createCacheKey } from '@/lib/cacheUtils';
 
 // Base URL for the Pokemon TCG API
 const API_BASE_URL = 'https://api.pokemontcg.io/v2';
@@ -17,13 +18,13 @@ function getHeaders() {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
-  
+
   if (API_KEY) {
     headers['X-Api-Key'] = API_KEY;
   } else {
     console.warn('Pokemon TCG API Key not found. API rate limits may apply.');
   }
-  
+
   return headers;
 }
 
@@ -33,23 +34,39 @@ async function handleResponse(response: Response) {
     if (response.status === 404) {
       return null;
     }
-    
+
     const errorText = await response.text();
     throw new Error(`API Error (${response.status}): ${errorText}`);
   }
-  
+
   return response.json();
 }
 
 // Get a card by ID
 export async function getCardById(cardId: string) {
   try {
+    // Check cache first
+    const cacheKey = createCacheKey(CACHE_KEYS.CARD_DETAILS, { id: cardId });
+    const cachedCard = getWithExpiry<any>(cacheKey);
+
+    if (cachedCard) {
+      return cachedCard;
+    }
+
+    // Fetch from API if not in cache
     const response = await fetch(`${API_BASE_URL}/cards/${cardId}`, {
       headers: getHeaders(),
     });
-    
+
     const data = await handleResponse(response);
-    return data?.data || null;
+    const card = data?.data || null;
+
+    // Cache the result
+    if (card) {
+      setWithExpiry(cacheKey, card, CACHE_TIMES.MEDIUM);
+    }
+
+    return card;
   } catch (error) {
     console.error(`Error fetching card ${cardId}:`, error);
     return null;
@@ -59,28 +76,47 @@ export async function getCardById(cardId: string) {
 // Search for cards with a query
 export async function searchCards(query: string, page = 1, pageSize = 20, orderBy?: string) {
   try {
+    // Check cache first (only for first page and standard page sizes)
+    const shouldCache = page === 1 && (pageSize === 20 || pageSize === 50 || pageSize === 100);
+    const cacheKey = createCacheKey(CACHE_KEYS.SEARCH_RESULTS, { query, page, pageSize, orderBy });
+
+    if (shouldCache) {
+      const cachedResults = getWithExpiry<{ cards: any[]; totalCount: number }>(cacheKey);
+      if (cachedResults) {
+        return cachedResults;
+      }
+    }
+
+    // Fetch from API if not in cache
     const params = new URLSearchParams({
       q: query,
       page: page.toString(),
       pageSize: pageSize.toString(),
     });
-    
+
     if (orderBy) {
       params.append('orderBy', orderBy);
     }
-    
+
     const response = await fetch(`${API_BASE_URL}/cards?${params}`, {
       headers: getHeaders(),
     });
-    
+
     const data = await handleResponse(response);
-    
+
     if (!data) return { cards: [], totalCount: 0 };
-    
-    return {
+
+    const results = {
       cards: data.data || [],
       totalCount: data.totalCount || 0,
     };
+
+    // Cache the results
+    if (shouldCache) {
+      setWithExpiry(cacheKey, results, CACHE_TIMES.SHORT);
+    }
+
+    return results;
   } catch (error) {
     console.error(`Error searching cards with query "${query}":`, error);
     return { cards: [], totalCount: 0 };
@@ -120,7 +156,7 @@ export function extractPrices(card: any): CardPrices | undefined {
 // Map an API card to our PokemonCard type
 export function mapApiCardToPokemonCard(apiCard: any): PokemonCard {
   if (!apiCard) throw new Error('Cannot map null or undefined card');
-  
+
   return {
     id: apiCard.id,
     name: apiCard.name || 'Unknown Card',

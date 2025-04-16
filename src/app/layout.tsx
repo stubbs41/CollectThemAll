@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "@/styles/mobile-optimizations.css";
 import Header from "@/components/Header";
+import MobileNavigation from "@/components/MobileNavigation";
 import { CollectionProvider } from "@/context/CollectionContext";
 import { AuthProvider } from "@/context/AuthContext";
 
@@ -33,9 +35,10 @@ export default function RootLayout({
         <AuthProvider>
           <CollectionProvider>
             <Header />
-            <main className="flex-grow container mx-auto px-4 py-6">
+            <main className="flex-grow container mx-auto px-4 py-6 page-container">
               {children}
             </main>
+            <MobileNavigation />
           </CollectionProvider>
         </AuthProvider>
       </body>

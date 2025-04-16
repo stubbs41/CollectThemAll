@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useCollections } from '@/context/CollectionContext';
-import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, PencilIcon, TrashIcon, FolderIcon } from '@heroicons/react/24/outline';
 
 interface CollectionGroupSelectorProps {
   onCreateGroup?: () => void;
@@ -58,17 +58,19 @@ const CollectionGroupSelector: React.FC<CollectionGroupSelectorProps> = ({ onCre
       <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
         <div className="flex-grow">
           <div className="flex items-center gap-2 mb-2">
+            <FolderIcon className="h-5 w-5 text-blue-500" />
             <h3 className="text-sm font-medium text-gray-700">Collection Group</h3>
           </div>
 
           <div className="flex gap-2">
-            <select
-              id="collection-group"
-              value={activeGroup}
-              onChange={handleGroupChange}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              aria-label="Select collection group"
-            >
+            <div className="relative flex-grow">
+              <select
+                id="collection-group"
+                value={activeGroup}
+                onChange={handleGroupChange}
+                className="block w-full pl-3 pr-10 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm appearance-none"
+                aria-label="Select collection group"
+              >
               {groups.map(group => {
                 // Skip duplicate 'Default' entries
                 if (group === 'Default' && groups.indexOf(group) !== groups.lastIndexOf(group)) {
@@ -81,15 +83,48 @@ const CollectionGroupSelector: React.FC<CollectionGroupSelectorProps> = ({ onCre
                 );
               })}
             </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
 
             <button
               type="button"
               onClick={onCreateGroup}
-              className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
               title="Create new collection group"
             >
-              <PlusIcon className="h-4 w-4" />
+              <PlusIcon className="h-4 w-4 mr-1" />
+              New
             </button>
+          </div>
+
+          <div className="flex mt-2 gap-2">
+            {activeGroup !== 'Default' && (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteGroup(activeGroup, e)}
+                  className="inline-flex items-center px-3 py-1 text-xs border border-red-200 rounded-md text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+                  title="Delete this collection group"
+                  disabled={isDeleting === activeGroup}
+                >
+                  <TrashIcon className="h-3 w-3 mr-1" />
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onCreateGroup && onCreateGroup()}
+                  className="inline-flex items-center px-3 py-1 text-xs border border-blue-200 rounded-md text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+                  title="Edit this collection group"
+                >
+                  <PencilIcon className="h-3 w-3 mr-1" />
+                  Edit
+                </button>
+              </>
+            )}
           </div>
 
           {activeGroupInfo?.description && (

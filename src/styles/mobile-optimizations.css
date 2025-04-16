@@ -1,0 +1,266 @@
+/* Mobile optimizations for PokeBinder */
+
+/* Base mobile styles */
+@media (max-width: 640px) {
+  /* Increase touch targets for better mobile usability */
+  button, 
+  a, 
+  select, 
+  input[type="checkbox"], 
+  input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Improve form elements on mobile */
+  input, select, textarea {
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
+  }
+  
+  /* Adjust spacing for mobile */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Improve card display on mobile */
+  .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+  }
+  
+  /* Adjust modal sizing for mobile */
+  .modal-content {
+    width: 95% !important;
+    max-width: 95% !important;
+    margin: 0 auto;
+  }
+  
+  /* Improve table display on mobile */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  
+  /* Fix fixed position elements on iOS */
+  .fixed {
+    position: fixed !important;
+    width: 100%;
+    -webkit-transform: translateZ(0);
+  }
+}
+
+/* Specific component optimizations */
+
+/* Collection group selector */
+@media (max-width: 640px) {
+  .collection-group-selector {
+    flex-direction: column;
+  }
+  
+  .collection-group-selector select {
+    width: 100%;
+  }
+}
+
+/* Card binder */
+@media (max-width: 640px) {
+  .card-binder-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+  
+  .card-binder-pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .card-binder-pagination button {
+    margin: 0.25rem;
+  }
+}
+
+/* Collection stats */
+@media (max-width: 640px) {
+  .collection-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Advanced filter panel */
+@media (max-width: 640px) {
+  .advanced-filter-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Batch card mover */
+@media (max-width: 640px) {
+  .batch-mover-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Comments section */
+@media (max-width: 640px) {
+  .comments-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Analytics dashboard */
+@media (max-width: 640px) {
+  .analytics-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Shared collection view */
+@media (max-width: 640px) {
+  .shared-collection-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .shared-collection-actions {
+    width: 100%;
+    margin-top: 1rem;
+  }
+}
+
+/* Fix for iOS input zoom */
+@media screen and (max-width: 640px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Fix for iOS 100vh issue */
+.full-height {
+  height: 100vh;
+  height: -webkit-fill-available;
+  height: fill-available;
+}
+
+/* Improve scrolling on iOS */
+.scroll-container {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent pull-to-refresh on iOS */
+html, body {
+  overscroll-behavior-y: none;
+}
+
+/* Improve tap highlight color */
+* {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Improve button active state on mobile */
+button:active {
+  opacity: 0.8;
+}
+
+/* Fix for iOS sticky header issues */
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: white;
+}
+
+/* Improve mobile navigation */
+.mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+  padding: 0.5rem;
+  display: flex;
+  justify-content: space-around;
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.mobile-nav-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Hide mobile nav on desktop */
+@media (min-width: 768px) {
+  .mobile-nav {
+    display: none;
+  }
+}
+
+/* Add padding to bottom of page to account for mobile nav */
+@media (max-width: 767px) {
+  .page-container {
+    padding-bottom: 4rem;
+  }
+}
+
+/* Improve mobile modals */
+@media (max-width: 640px) {
+  .modal-content {
+    border-radius: 1rem 1rem 0 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  .modal-header {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 1;
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+  }
+}
+
+/* Improve mobile dropdowns */
+@media (max-width: 640px) {
+  .dropdown-menu {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-radius: 1rem 1rem 0 0;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  
+  .dropdown-item {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+  }
+}

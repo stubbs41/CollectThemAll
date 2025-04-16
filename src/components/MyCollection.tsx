@@ -13,7 +13,7 @@ import AdvancedFilterPanel, { FilterCriteria, SortOption as AdvancedSortOption }
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { preloadImages } from '@/lib/utils';
-import { FunnelIcon } from '@heroicons/react/24/outline';
+import { FunnelIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 import { CollectionType } from '@/services/CollectionService';
 
 // Define a type for the collection items we expect from the API
@@ -49,6 +49,8 @@ export default function MyCollection() {
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [groupToEdit, setGroupToEdit] = useState<{name: string, description?: string} | null>(null);
   const [isBatchMoverOpen, setIsBatchMoverOpen] = useState(false);
+  const [isUpdatingPrices, setIsUpdatingPrices] = useState(false);
+  const [priceUpdateMessage, setPriceUpdateMessage] = useState<string | null>(null);
 
   // State for sorting and filtering
   const [sortBy, setSortBy] = useState<SortOption>('newest');
@@ -304,6 +306,44 @@ export default function MyCollection() {
     }
   };
 
+  // Handle updating market prices
+  const handleUpdateMarketPrices = async () => {
+    if (isUpdatingPrices) return;
+
+    setIsUpdatingPrices(true);
+    setPriceUpdateMessage('Updating market prices...');
+
+    try {
+      const response = await fetch(`/api/collections/update-prices?groupName=${encodeURIComponent(activeGroup)}`);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setPriceUpdateMessage(`Successfully updated ${data.updated} of ${data.total} cards`);
+
+      // Refresh collections to show updated prices
+      await refreshCollections();
+
+      // Clear message after 5 seconds
+      setTimeout(() => {
+        setPriceUpdateMessage(null);
+      }, 5000);
+    } catch (err) {
+      console.error('Error updating market prices:', err);
+      setPriceUpdateMessage(`Error: ${err instanceof Error ? err.message : 'Failed to update prices'}`);
+
+      // Clear error message after 5 seconds
+      setTimeout(() => {
+        setPriceUpdateMessage(null);
+      }, 5000);
+    } finally {
+      setIsUpdatingPrices(false);
+    }
+  };
+
   // Render logic
   if (authLoading) {
     return <div className="text-center py-10">Loading authentication...</div>;
@@ -353,6 +393,11 @@ export default function MyCollection() {
             </div>
 
             {/* Collection Actions */}
+            {priceUpdateMessage && (
+              <div className={`mt-4 p-2 rounded text-sm ${priceUpdateMessage.includes('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                {priceUpdateMessage}
+              </div>
+            )}
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
@@ -377,6 +422,15 @@ export default function MyCollection() {
                 className="px-3 py-1.5 text-sm font-medium rounded bg-amber-600 text-white hover:bg-amber-700"
               >
                 Move Cards
+              </button>
+              <button
+                type="button"
+                onClick={handleUpdateMarketPrices}
+                disabled={isUpdatingPrices}
+                className="px-3 py-1.5 text-sm font-medium rounded bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
+              >
+                <CurrencyDollarIcon className="h-4 w-4 mr-1" />
+                {isUpdatingPrices ? 'Updating...' : 'Update Prices'}
               </button>
             </div>
           </div>
