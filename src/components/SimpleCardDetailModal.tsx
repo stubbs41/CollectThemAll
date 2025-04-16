@@ -29,21 +29,26 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
       return;
     }
 
+    // Only initialize with cardId when first opening the modal
+    if (!selectedPrintId) {
+      setSelectedPrintId(cardId);
+    }
+
     let isMounted = true;
     const loadCardData = async () => {
       setIsLoading(true);
       setError(null);
       setCard(null);
       setPrints([]);
-      setSelectedPrintId(cardId);
 
       try {
-        // Fetch card details
-        console.log(`Card ID changed from ${selectedPrintId} to ${cardId}`);
-        const fetchedInitialDetails = await fetchCardDetails(cardId);
+        // Fetch card details for the currently selected print (or initial card)
+        const currentId = selectedPrintId || cardId;
+        console.log(`Loading card data for ID: ${currentId}`);
+        const fetchedInitialDetails = await fetchCardDetails(currentId);
 
         if (!fetchedInitialDetails) {
-          throw new Error(`Card details not found for ID: ${cardId}`);
+          throw new Error(`Card details not found for ID: ${currentId}`);
         }
 
         if (!isMounted) return;
@@ -202,15 +207,8 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
                         key={print.id}
                         onClick={() => {
                           console.log(`Selecting print: ${print.id}`);
+                          // Just update the selectedPrintId - the useEffect will handle the rest
                           setSelectedPrintId(print.id);
-                          // Force a re-fetch of card details when selecting a different print
-                          if (print.id !== cardId) {
-                            fetchCardDetails(print.id).then(details => {
-                              if (details) {
-                                setCard(details);
-                              }
-                            });
-                          }
                         }}
                         className={`px-2 py-1 text-sm rounded border ${selectedPrintId === print.id ? 'bg-blue-100 border-blue-500' : 'bg-gray-100 border-gray-300'}`}
                       >
