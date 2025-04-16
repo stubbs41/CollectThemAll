@@ -5,6 +5,8 @@ import { PokemonCard } from '@/lib/types';
 import { fetchCardDetails } from '@/lib/pokemonApi';
 import Image from 'next/image';
 import { getProxiedImageUrl } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import { useCollections } from '@/context/CollectionContext';
 
 interface SimpleCardDetailModalProps {
   cardId: string | null;
@@ -17,6 +19,12 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
   const [selectedPrintId, setSelectedPrintId] = useState<string | null>(null);
   const [loading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [addingToCollection, setAddingToCollection] = useState<boolean>(false);
+  const [addSuccess, setAddSuccess] = useState<boolean>(false);
+
+  // Get auth and collection context
+  const { session } = useAuth();
+  const { addCardToCollection, refreshCollections } = useCollections();
 
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -224,64 +232,93 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
               {/* Collection actions */}
               <div className="border-t border-gray-200 pt-4 mt-2">
                 <h3 className="text-lg font-semibold">Collection Actions</h3>
-                <div className="mt-2 flex gap-2">
-                  <button
-                    className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-                    onClick={() => {
-                      // Call API to add to collection
-                      fetch('/api/collections/add', {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                          cardId: displayedCard?.id,
-                          collectionType: 'have'
-                        }),
-                      })
-                      .then(response => {
-                        if (response.ok) {
-                          alert('Added to collection!');
-                        } else {
-                          alert('Please sign in to add to your collection');
+                {!session ? (
+                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                    <p className="text-amber-700 text-sm">Please sign in to add cards to your collection or wishlist.</p>
+                    <button
+                      onClick={onClose}
+                      className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm"
+                    >
+                      Close to Sign In
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      disabled={addingToCollection}
+                      onClick={async () => {
+                        if (!displayedCard) return;
+
+                        setAddingToCollection(true);
+                        try {
+                          // Use the context function to add to collection
+                          const result = await addCardToCollection(
+                            displayedCard.id,
+                            displayedCard,
+                            'have'
+                          );
+
+                          if (result.status === 'added' || result.status === 'updated') {
+                            setAddSuccess(true);
+                            setTimeout(() => setAddSuccess(false), 3000);
+                            // Refresh collections to update UI
+                            await refreshCollections();
+                          } else if (result.status === 'error') {
+                            alert(`Error: ${result.message || 'Failed to add card to collection'}`);
+                          }
+                        } catch (error) {
+                          console.error('Error adding to collection:', error);
+                          alert('Failed to add card to collection. Please try again.');
+                        } finally {
+                          setAddingToCollection(false);
                         }
-                      })
-                      .catch(error => {
-                        console.error('Error adding to collection:', error);
-                      });
-                    }}
-                  >
-                    Add to Collection
-                  </button>
-                  <button
-                    className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
-                    onClick={() => {
-                      // Call API to add to wishlist
-                      fetch('/api/collections/add', {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                          cardId: displayedCard?.id,
-                          collectionType: 'want'
-                        }),
-                      })
-                      .then(response => {
-                        if (response.ok) {
-                          alert('Added to wishlist!');
-                        } else {
-                          alert('Please sign in to add to your wishlist');
+                      }}
+                    >
+                      {addingToCollection ? 'Adding...' : 'Add to Collection'}
+                    </button>
+                    <button
+                      className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      disabled={addingToCollection}
+                      onClick={async () => {
+                        if (!displayedCard) return;
+
+                        setAddingToCollection(true);
+                        try {
+                          // Use the context function to add to wishlist
+                          const result = await addCardToCollection(
+                            displayedCard.id,
+                            displayedCard,
+                            'want'
+                          );
+
+                          if (result.status === 'added' || result.status === 'updated') {
+                            setAddSuccess(true);
+                            setTimeout(() => setAddSuccess(false), 3000);
+                            // Refresh collections to update UI
+                            await refreshCollections();
+                          } else if (result.status === 'error') {
+                            alert(`Error: ${result.message || 'Failed to add card to wishlist'}`);
+                          }
+                        } catch (error) {
+                          console.error('Error adding to wishlist:', error);
+                          alert('Failed to add card to wishlist. Please try again.');
+                        } finally {
+                          setAddingToCollection(false);
                         }
-                      })
-                      .catch(error => {
-                        console.error('Error adding to wishlist:', error);
-                      });
-                    }}
-                  >
-                    Add to Wishlist
-                  </button>
-                </div>
+                      }}
+                    >
+                      {addingToCollection ? 'Adding...' : 'Add to Wishlist'}
+                    </button>
+                    {addSuccess && (
+                      <div className="mt-3 text-center">
+                        <p className="text-sm text-green-600 font-medium">
+                          Card added successfully!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
