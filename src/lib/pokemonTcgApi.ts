@@ -76,13 +76,17 @@ export async function getCardById(cardId: string) {
 // Search for cards with a query
 export async function searchCards(query: string, page = 1, pageSize = 20, orderBy?: string) {
   try {
+    // For direct Pokémon name searches, we want to get all results
+    const isDirectNameSearch = query.startsWith('name:') && !query.includes('*');
+
     // Check cache first (only for first page and standard page sizes)
-    const shouldCache = page === 1 && (pageSize === 20 || pageSize === 50 || pageSize === 100);
+    const shouldCache = page === 1 && (pageSize === 20 || pageSize === 50 || pageSize === 100 || pageSize === 250);
     const cacheKey = createCacheKey(CACHE_KEYS.SEARCH_RESULTS, { query, page, pageSize, orderBy });
 
     if (shouldCache) {
       const cachedResults = getWithExpiry<{ cards: any[]; totalCount: number }>(cacheKey);
       if (cachedResults) {
+        console.log(`Cache hit for query: ${query}`);
         return cachedResults;
       }
     }
@@ -98,8 +102,18 @@ export async function searchCards(query: string, page = 1, pageSize = 20, orderB
       params.append('orderBy', orderBy);
     }
 
+    // For direct name searches, we want to get as many results as possible
+    if (isDirectNameSearch) {
+      console.log(`Direct name search for: ${query}, getting maximum results`);
+      params.set('pageSize', '250'); // Maximum allowed by the API
+    }
+
+    console.log(`Searching Pokemon TCG API with params:`, Object.fromEntries(params));
+
     const response = await fetch(`${API_BASE_URL}/cards?${params}`, {
       headers: getHeaders(),
+      // Prevent caching for direct searches to ensure fresh results
+      cache: isDirectNameSearch ? 'no-store' : 'default',
     });
 
     const data = await handleResponse(response);
@@ -111,9 +125,12 @@ export async function searchCards(query: string, page = 1, pageSize = 20, orderB
       totalCount: data.totalCount || 0,
     };
 
+    console.log(`Search for "${query}" returned ${results.cards.length} cards (total: ${results.totalCount})`);
+
     // Cache the results
     if (shouldCache) {
-      setWithExpiry(cacheKey, results, CACHE_TIMES.SHORT);
+      const cacheDuration = isDirectNameSearch ? CACHE_TIMES.MEDIUM : CACHE_TIMES.SHORT;
+      setWithExpiry(cacheKey, results, cacheDuration);
     }
 
     return results;

@@ -30,14 +30,14 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
   // --- State for cards DISPLAYED after potential client-side filtering ---
   const [displayedCards, setDisplayedCards] = useState<PokemonCard[]>([]);
   // --- State for cards fetched directly from API (used for client-side filtering) ---
-  const [fetchedCards, setFetchedCards] = useState<PokemonCard[]>([]); 
+  const [fetchedCards, setFetchedCards] = useState<PokemonCard[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1); // State for current page number (1-based)
   const [totalPages, setTotalPages] = useState(1); // State for total pages
   const [emptyPageMessage, setEmptyPageMessage] = useState<string | null>(null); // Message when a page has no cards
-  
+
   // Search related state
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -47,15 +47,15 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
   const [filters, setFilters] = useState<FilterState>({});
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   // State to hold available filter options (fetched later)
-  const [filterOptions, setFilterOptions] = useState<FilterOptions>({ 
-      sets: [], 
-      rarities: [], 
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+      sets: [],
+      rarities: [],
       types: [],
-      supertypes: [] 
+      supertypes: []
   });
   const [isLoadingFilters, setIsLoadingFilters] = useState(true);
 
-  // --- Fetch Filter Options --- 
+  // --- Fetch Filter Options ---
   useEffect(() => {
     async function fetchFilterOptions() {
       setIsLoadingFilters(true);
@@ -93,7 +93,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
     }
     // Fetching is handled by the main useEffect reacting to 'filters'
   };
-  
+
   // --- Function to clear all filters ---
   const clearFilters = () => {
       console.log("Clearing all filters"); // Log filter clear
@@ -142,14 +142,14 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
       .then((data: { cards: PokemonCard[], totalCount: number, totalPages: number, isEmptyPage: boolean, message?: string } | undefined) => {
         if (data) {
           console.log(`CardExplorer: Received ${data.cards.length} cards for page ${pageToFetch} (Filtered).`);
-          
+
           // Set empty page message if applicable
           if (data.isEmptyPage && data.message) {
             setEmptyPageMessage(data.message);
           } else if (data.cards.length === 0) {
             setEmptyPageMessage(`No cards found for page ${pageToFetch}.`);
           }
-          
+
           // -- Set BOTH fetched and displayed cards --
           setFetchedCards(data.cards);
           setDisplayedCards(data.cards);
@@ -170,29 +170,34 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
           setIsLoading(false);
         }
       });
-    
+
     return () => {
       console.log("CardExplorer: Aborting fetch for page", pageToFetch);
       controller.abort();
     };
-  }, []); 
+  }, []);
 
   // Function to search for cards (SEARCH TERM ONLY)
   const searchCards = useCallback(async (query: string, pageToFetch: number /* Remove currentFilters here */) => {
     // -- Remove filter query construction from here --
     // const filterParams = new URLSearchParams(); ... etc ...
     // const filterQueryString = filterParams.toString();
-    const apiUrl = `/api/cards-search?q=${encodeURIComponent(query)}&page=${pageToFetch}&limit=${CARDS_PER_PAGE}`;
+
+    // Check if this is a specific Pokémon name search (like "Audino")
+    const isSpecificPokemonSearch = query.trim().length > 2 && !query.includes(' ') && !query.includes('*');
+
+    // Add a flag for specific Pokémon searches to use our direct search approach
+    const apiUrl = `/api/cards-search?q=${encodeURIComponent(query)}&page=${pageToFetch}&limit=${CARDS_PER_PAGE}${isSpecificPokemonSearch ? '&directSearch=true' : ''}`;
     // -- Only search by name --
 
     if (!query.trim()) {
       // If query is empty, revert to normal page view (fetchDataForPage will be called by useEffect)
-      setSearchPerformed(false); 
+      setSearchPerformed(false);
       // No need to call fetchDataForPage directly here, let useEffect handle it based on searchPerformed=false
-      return; 
+      return;
     }
 
-    console.log(`CardExplorer: Searching ${apiUrl} (Name only)`);
+    console.log(`CardExplorer: Searching ${apiUrl} ${isSpecificPokemonSearch ? '(Direct Pokémon search)' : '(Name only)'}`);
     setIsLoading(true);
     setError(null);
     setIsSearching(true);
@@ -202,7 +207,13 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
     const signal = controller.signal;
 
     try {
-      const response = await fetch(apiUrl, { signal });
+      // For specific Pokémon searches, use cache: 'no-store' to ensure fresh results
+      const fetchOptions = {
+        signal,
+        cache: isSpecificPokemonSearch ? 'no-store' as RequestCache : 'default' as RequestCache
+      };
+
+      const response = await fetch(apiUrl, fetchOptions);
 
       if (!response.ok) {
         if (signal.aborted) {
@@ -220,11 +231,16 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
         if (data.isEmptyPage && data.message) {
           setEmptyPageMessage(data.message);
         } else if (data.cards.length === 0) {
-          setEmptyPageMessage(`No cards found matching "${query}" on page ${pageToFetch}.`);
+          if (isSpecificPokemonSearch) {
+            // For specific Pokémon searches, provide a more helpful message
+            setEmptyPageMessage(`No cards found for "${query}". This Pokémon might not be available in the database.`);
+          } else {
+            setEmptyPageMessage(`No cards found matching "${query}" on page ${pageToFetch}.`);
+          }
         } else {
           setEmptyPageMessage(null);
         }
-        
+
         // -- Set ONLY fetchedCards here --
         setFetchedCards(data.cards);
         // Client-side filtering will happen in useEffect to set displayedCards
@@ -250,7 +266,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
       console.log("CardExplorer: Aborting search for query", query);
       controller.abort();
     };
-  }, []); 
+  }, []);
 
   // --- Client-side filtering logic ---
   const applyClientSideFilters = (cardsToFilter: PokemonCard[], currentFilters: FilterState): PokemonCard[] => {
@@ -265,7 +281,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
           // Assuming card.types is an array of strings
           const typeMatch = !currentFilters.type || card.types?.includes(currentFilters.type);
           const supertypeMatch = !currentFilters.supertype || card.supertype === currentFilters.supertype;
-          
+
           return setMatch && rarityMatch && typeMatch && supertypeMatch;
       });
   };
@@ -273,10 +289,10 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
   // Effect to fetch data OR apply client-side filters
   useEffect(() => {
     console.log("Effect triggered: searchPerformed=", searchPerformed, "currentPage=", currentPage, "filters=", filters); // Log effect trigger
-    
+
     if (searchPerformed && searchQuery.trim()) {
       // Search is active: Call search API (which sets fetchedCards)
-      console.log("Calling searchCards API..."); 
+      console.log("Calling searchCards API...");
       searchCards(searchQuery, currentPage);
     } else {
       // No search: Call paged API with filters (sets fetchedCards and displayedCards)
@@ -285,7 +301,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
     }
     // Cleanup function is handled by the specific fetch/search calls
   }, [currentPage, filters, searchPerformed, searchQuery, fetchDataForPage, searchCards]);
-  
+
   // --- Effect to apply client-side filters AFTER search results arrive ---
   useEffect(() => {
       if (searchPerformed) {
@@ -304,8 +320,8 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      setCurrentPage(1); 
-      setSearchPerformed(true); 
+      setCurrentPage(1);
+      setSearchPerformed(true);
       // useEffect will now call searchCards because searchPerformed is true
     } else {
         // If search is submitted with empty query, clear search/filters
@@ -375,9 +391,9 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
                 <button
                   type="submit"
                   disabled={isSearching || !searchQuery.trim()}
-                  className={`px-4 py-2 rounded-lg font-medium 
-                    ${isSearching || !searchQuery.trim() 
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                  className={`px-4 py-2 rounded-lg font-medium
+                    ${isSearching || !searchQuery.trim()
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                 >
                   {isSearching ? 'Searching...' : 'Search'}
@@ -405,13 +421,13 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
                 </button>
               </div>
             </form>
-            
+
             {/* Display Active Filters (Placeholder) */}
             <div className="flex flex-wrap gap-1 mt-1">
               {Object.entries(filters).map(([key, value]) => value ? (
                 <span key={key} className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full flex items-center">
                   {key}: {value}
-                  <button 
+                  <button
                     onClick={() => updateFilters({ [key]: undefined })} // Clear specific filter
                     className="ml-1 text-red-500 hover:text-red-700"
                   >
@@ -420,7 +436,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
                 </span>
               ) : null)}
               {Object.values(filters).some(v => v) && (
-                  <button 
+                  <button
                     onClick={clearFilters}
                     className="text-xs text-blue-600 hover:underline ml-1"
                   >
@@ -430,19 +446,19 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
             </div>
         </div>
       </div>
-      
+
       {/* Search status message - adjust to reflect client filtering? */}
       {searchPerformed && !emptyPageMessage && (
           <div className="max-w-4xl mx-auto mt-2 text-sm text-gray-600">
-            {isLoading ? `Searching for "${searchQuery}"...` : 
+            {isLoading ? `Searching for "${searchQuery}"...` :
             `Displaying ${displayedCards.length} cards matching "${searchQuery}"${Object.values(filters).some(v=>v) ? ' and filters' : ''}.`
             }
           </div>
       )}
-      
+
       {/* Filter Panel Modal/Drawer (Pass displayedCards count?) */}
       {isFilterPanelOpen && (
-          <FilterPanel 
+          <FilterPanel
               isOpen={isFilterPanelOpen}
               onClose={() => setIsFilterPanelOpen(false)}
               currentFilters={filters}
@@ -451,7 +467,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
               isLoadingOptions={isLoadingFilters} // Pass loading state
           />
       )}
-      
+
       {/* Loading state - Check isLoading, not displayedCards.length */}
       {isLoading && displayedCards.length === 0 ? (
         <div className="text-center p-10 text-lg text-gray-500">Loading Pokémon cards...</div>
@@ -462,8 +478,8 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
         <div className="text-center p-10">
           <p className="text-lg text-amber-600 mb-2">{emptyPageMessage}</p>
           <p className="text-md text-gray-600">Try navigating to a lower page number or adjusting your search/filters.</p>
-          <button 
-            onClick={() => setCurrentPage(1)} 
+          <button
+            onClick={() => setCurrentPage(1)}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
           >
             Go to First Page
@@ -475,18 +491,18 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
               {searchPerformed ? `No cards found matching "${searchQuery}"${Object.values(filters).some(v=>v) ? ' and filters' : ''}.` : 'No cards found matching filters.'}
           </div>
       ) : (
-        <CardBinder 
+        <CardBinder
           // -- Pass displayedCards --
           cards={displayedCards}
           currentPage={currentPage}
           totalPages={totalPages}
           goToNextPage={goToNextPage}
           goToPreviousPage={goToPreviousPage}
-          goToPage={goToPage} 
+          goToPage={goToPage}
           isLoading={isLoading}
           isExploreView={true} // This is the explore view
         />
       )}
     </div>
   );
-} 
+}

@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 // Remove direct SDK import
 // import { findCardsByQueries, Card } from 'pokemon-tcg-sdk-typescript/dist/sdk';
 import { PokemonCard } from '@/lib/types';
-// Import the refactored function from pokemonApi
+// Import the refactored functions from pokemonApi and pokemonTcgApi
 import { fetchCardsPaged } from '@/lib/pokemonApi';
+import { searchCards as directSearchCards, mapApiCardToPokemonCard } from '@/lib/pokemonTcgApi';
 
 // Add export configuration for static exports
 export const dynamic = 'force-dynamic';
@@ -16,6 +17,9 @@ export async function GET(request: NextRequest) {
   const query = searchParams.get('q') || '';
   const page = parseInt(searchParams.get('page') || '1', 10);
   const limit = parseInt(searchParams.get('limit') || '32', 10);
+
+  // Check if this is a direct search request (for specific Pokémon names)
+  const directSearch = searchParams.get('directSearch') === 'true';
 
   // -- Extract Filter Parameters --
   const set = searchParams.get('set') || undefined;
@@ -43,37 +47,77 @@ export async function GET(request: NextRequest) {
   console.log(`API Search Route: Proxying search for "${query}", page=${page}, limit=${limit}, filters:`, filters);
 
   try {
-    // Directly use the refactored fetchCardsPaged which calls the proxy
-    // We need to modify fetchCardsPaged slightly to handle the name query alongside filters
-    // OR adjust the proxy function to handle name searches
-    // For now, let's assume fetchCardsPaged can handle a combined query
+    // Check if this is a specific Pokémon name search (like "Audino")
+    // For specific Pokémon names, we'll use a direct search approach
+    // Use the directSearch parameter from the client or detect it automatically
+    const isSpecificPokemonSearch = directSearch || (query.trim().length > 2 && !query.includes(' ') && !query.includes('*'));
 
-    // Combine the search query with filters (This logic might need refinement
-    // depending on how pokemonApi/proxy handles combined q)
-    const combinedFilters = {
-        ...filters,
-        // We need a way to pass the search term. Let's add a name property?
-        // Or adjust fetchCardsPaged to accept a general query string?
-        // --- TEMPORARY WORKAROUND: Add name to filters object ---
-        // This assumes fetchCardsPaged will build the query correctly
-        name: query
-        // --- END TEMPORARY WORKAROUND ---
-    };
+    let cards: PokemonCard[] = [];
+    let totalCount = 0;
 
-    // Call the function that uses the proxy
-    const { cards, totalCount } = await fetchCardsPaged(page, limit, combinedFilters as any);
+    if (isSpecificPokemonSearch) {
+      console.log(`API Search Route: Using direct search for specific Pokémon "${query}"`);
 
-    console.log(`API Search Route: Received ${cards.length} cards from proxy.`);
+      // Build a direct search query for the Pokémon name
+      // This will search for exact matches first
+      const exactQuery = `name:"${query}"`;  // Exact match
+
+      // Perform the direct search
+      const exactResults = await directSearchCards(exactQuery, 1, 250);
+
+      if (exactResults.cards.length > 0) {
+        // We found exact matches
+        cards = exactResults.cards.map(mapApiCardToPokemonCard);
+        totalCount = exactResults.totalCount;
+      } else {
+        // Try a partial match if exact match fails
+        console.log(`API Search Route: No exact matches for "${query}", trying partial match`);
+        const partialQuery = `name:*${query}*`;  // Partial match
+        const partialResults = await directSearchCards(partialQuery, 1, 250);
+        cards = partialResults.cards.map(mapApiCardToPokemonCard);
+        totalCount = partialResults.totalCount;
+      }
+
+      // Apply pagination manually
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      cards = cards.slice(startIndex, endIndex);
+
+      console.log(`API Search Route: Direct search found ${totalCount} total cards, returning ${cards.length} for page ${page}`);
+    } else {
+      // For more complex searches, use the existing approach
+      console.log(`API Search Route: Using standard search for "${query}"`);
+
+      // Combine the search query with filters
+      const combinedFilters = {
+          ...filters,
+          name: query
+      };
+
+      // Call the function that uses the proxy
+      const results = await fetchCardsPaged(page, limit, combinedFilters as any);
+      cards = results.cards;
+      totalCount = results.totalCount;
+    }
+
+    console.log(`API Search Route: Received ${cards.length} cards from search.`);
 
     // Return the data (mapping already done by fetchCardsPaged)
+    // For direct searches, we don't want to cache the response
+    // This ensures we always get fresh results for specific Pokémon searches
+    const cacheControl = isSpecificPokemonSearch
+      ? 'no-store, max-age=0'
+      : 'public, s-maxage=3600, stale-while-revalidate=86400';
+
     return NextResponse.json({
       cards,
-      totalCount, // Use totalCount returned from the proxy (needs implementation there)
-      query
+      totalCount,
+      query,
+      directSearch: isSpecificPokemonSearch // Include this flag in the response
     }, {
       status: 200,
       headers: {
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+        'Cache-Control': cacheControl,
       },
     });
 
