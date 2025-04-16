@@ -4,10 +4,17 @@ import { mapApiCardToPokemonCard } from '@/lib/apiUtils';
 
 // Configure the SDK with the API key (server-side only)
 const apiKey = process.env.POKEMON_TCG_API_KEY;
-if (apiKey) {
-  PokemonTCG.configure({ apiKey });
+
+// Make sure PokemonTCG is defined before trying to configure it
+if (apiKey && typeof PokemonTCG !== 'undefined' && PokemonTCG.configure) {
+  try {
+    PokemonTCG.configure({ apiKey });
+    console.log('Pokemon TCG SDK configured with API key');
+  } catch (error) {
+    console.error('Error configuring Pokemon TCG SDK:', error);
+  }
 } else {
-  console.warn('Pokemon TCG API Key not found. API rate limits may apply.');
+  console.warn('Pokemon TCG API Key not found or SDK not available. API rate limits may apply.');
 }
 
 export const dynamic = 'force-dynamic';
@@ -34,12 +41,12 @@ export async function GET(request: NextRequest) {
     const apiCards = await findCardsByQueries(queryParams);
 
     console.log(`/api/cards-by-set: Fetched ${apiCards.length} cards for set ${setId}`);
-    
+
     // Map API cards to our PokemonCard type
     const cards = apiCards.map(mapApiCardToPokemonCard);
 
     // Return the response
-    return NextResponse.json({ 
+    return NextResponse.json({
       cards,
       count: cards.length
     }, {
