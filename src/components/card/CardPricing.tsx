@@ -37,7 +37,7 @@ const CardPricing: React.FC<CardPricingProps> = ({ prices }) => {
   return (
     <div className="card-pricing">
       <h3 className="text-lg font-semibold mb-2 text-gray-800">Market Pricing ({finishType})</h3>
-      
+
       {displayPriceData ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
           {(['low', 'mid', 'high', 'market'] as const).map((priceKey) => {
@@ -49,13 +49,13 @@ const CardPricing: React.FC<CardPricingProps> = ({ prices }) => {
                   {formatPrice(priceValue)}
                 </p>
               </div>
-            ) : null; 
+            ) : null;
           })}
         </div>
       ) : (
         <p className="text-sm text-gray-500 italic">No TCGPlayer price data available.</p>
       )}
-      
+
       {lastUpdated && (
         <p className="text-xs text-gray-400 mt-2 text-right">Prices updated: {lastUpdated}</p>
       )}
@@ -63,4 +63,4 @@ const CardPricing: React.FC<CardPricingProps> = ({ prices }) => {
   );
 };
 
-export default React.memo(CardPricing); 
+export default CardPricing;

@@ -67,4 +67,4 @@ const CardImage: React.FC<CardImageProps> = ({
   );
 };
 
-export default React.memo(CardImage);
+export default CardImage;

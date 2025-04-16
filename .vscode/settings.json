@@ -20,5 +20,12 @@
   ],
   "[typescript]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
-  }
+  },
+  "augment.advanced": {
+
+    
+  },
+  "augment.nextEdit.enableGlobalBackgroundSuggestions": true,
+  "augment.nextEdit.showDiffInHover": true,
+  "augment.nextEdit.highlightSuggestionsInTheEditor": true
 }

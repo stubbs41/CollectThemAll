@@ -118,4 +118,4 @@ const CardPrintSelector: React.FC<CardPrintSelectorProps> = ({
   );
 };
 
-export default React.memo(CardPrintSelector);
+export default CardPrintSelector;
