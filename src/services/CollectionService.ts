@@ -800,11 +800,10 @@ export default class CollectionService {
     sharingLevel: 'group' | 'have' | 'want',
     expiresInDays: number = 7,
     options?: {
-      // These options are not currently supported by the database schema
-      // is_collaborative?: boolean;
-      // password?: string;
-      // permission_level?: 'read' | 'write';
-      // allow_comments?: boolean;
+      is_collaborative?: boolean;
+      password?: string;
+      permission_level?: 'read' | 'write';
+      allow_comments?: boolean;
     }
   ): Promise<{ success: boolean, shareId?: string, error?: string }> {
     if (!groupName.trim()) {
@@ -867,7 +866,7 @@ export default class CollectionService {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
-      // Create shared collection record
+      // Create shared collection record - only include fields that exist in the schema
       const { data: sharedCollection, error: createError } = await this.supabase
         .from('shared_collections')
         .insert({
@@ -877,11 +876,11 @@ export default class CollectionService {
           collection_name: groupName,
           collection_type: collectionType,
           data: collectionData,
-          expires_at: expiresAt.toISOString()
-          // The following fields are not in the current database schema
-          // status: 'active',
-          // view_count: 0,
-          // sharing_level: sharingLevel,
+          expires_at: expiresAt.toISOString(),
+          status: 'active',
+          view_count: 0,
+          sharing_level: sharingLevel
+          // Omit fields that don't exist in the schema
           // is_collaborative: options?.is_collaborative || false,
           // password_protected: !!options?.password,
           // password_hash: options?.password ? await this.hashPassword(options.password) : null,
@@ -940,10 +939,13 @@ export default class CollectionService {
       // Process each item in the data
       const importPromises = data.map(async (item) => {
         // Validate item has required fields
-        if (!item.card_id || !item.collection_type) {
-          console.warn('Skipping invalid import item:', item);
+        if (!item.card_id) {
+          console.warn('Skipping invalid import item (missing card_id):', item);
           return;
         }
+
+        // If collection_type is missing, use the default 'have' type
+        const collectionType = item.collection_type || 'have';
 
         // Check if card already exists in this collection and group
         const { data: existingCard } = await this.supabase
@@ -951,7 +953,7 @@ export default class CollectionService {
           .select('id, quantity')
           .eq('user_id', session.user.id)
           .eq('card_id', item.card_id)
-          .eq('collection_type', item.collection_type)
+          .eq('collection_type', collectionType)
           .eq('group_name', targetGroupName)
           .single();
 
@@ -974,7 +976,7 @@ export default class CollectionService {
               card_id: item.card_id,
               card_name: item.card_name || 'Unknown Card',
               card_image_small: item.card_image_small || '',
-              collection_type: item.collection_type,
+              collection_type: collectionType,
               group_name: targetGroupName,
               quantity: item.quantity || 1,
               market_price: item.market_price || 0

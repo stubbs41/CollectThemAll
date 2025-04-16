@@ -201,19 +201,20 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
         ? (importData.collection_name || importData.group_name || 'Imported Collection')
         : importGroup;
 
-      // Filter items to match the current collection type if needed
-      const filteredItems = importData.items.filter(item =>
-        item.collection_type === collectionType || item.collection_type === undefined
-      );
+      // Ensure all items have the correct collection type
+      const processedItems = importData.items.map(item => ({
+        ...item,
+        collection_type: collectionType // Force the current collection type
+      }));
 
-      if (filteredItems.length === 0) {
-        throw new Error(`No ${collectionType} items found in the import file.`);
+      if (processedItems.length === 0) {
+        throw new Error('No items found in the import file.');
       }
 
       // Import the collection by making API calls
       const importCount = await importCollection({
         ...importData,
-        items: filteredItems
+        items: processedItems
       }, targetGroupName);
 
       setSuccess(`Successfully imported ${importCount} cards to your "${targetGroupName}" collection!`);
@@ -261,6 +262,7 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
 
       <div className="flex flex-wrap gap-2 mb-4">
         <button
+          type="button"
           onClick={handleExport}
           disabled={isExporting || collection.length === 0}
           className={`px-4 py-2 text-sm font-medium rounded-lg ${
@@ -274,6 +276,7 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
         </button>
 
         <button
+          type="button"
           onClick={handleShare}
           disabled={isSharing || collection.length === 0}
           className={`px-4 py-2 text-sm font-medium rounded-lg ${
@@ -287,6 +290,7 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
         </button>
 
         <button
+          type="button"
           id="import-collection-button"
           onClick={handleImportClick}
           disabled={isImporting}
@@ -350,6 +354,7 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
           <div className="flex items-center justify-between">
             <div className="text-sm text-purple-800 truncate">{shareLink}</div>
             <button
+              type="button"
               onClick={copyShareLink}
               className="ml-2 px-3 py-1 text-xs font-medium rounded-md bg-purple-600 text-white hover:bg-purple-700"
             >
