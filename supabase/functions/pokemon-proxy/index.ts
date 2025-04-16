@@ -10,6 +10,7 @@ const THEORETICAL_MAX_PAGES = 500; // Based on ~16,000 cards at 32 per page
 const MAX_PAGE_SIZE = 250;  // Maximum page size allowed
 
 // Ensure API key is available (Deno reads from env differently)
+// Note: This should be POKEMON_TCG_API_KEY (without NEXT_PUBLIC_ prefix) for security
 const apiKey = Deno.env.get("POKEMON_TCG_API_KEY");
 if (apiKey) {
   PokemonTCG.configure({ apiKey });
@@ -40,18 +41,18 @@ serve(async (req) => {
     });
   }
 
-  // --- Basic Routing --- 
+  // --- Basic Routing ---
   if (path === '/cards' && req.method === 'GET') {
     const query = params.get('q') || '';
     let page = parseInt(params.get('page') || '1');
     let pageSize = parseInt(params.get('pageSize') || '250');
-    
+
     // Enforce maximum page size for performance
     if (pageSize > MAX_PAGE_SIZE) {
       console.warn(`Requested pageSize ${pageSize} exceeds maximum allowed (${MAX_PAGE_SIZE}). Limiting to max.`);
       pageSize = MAX_PAGE_SIZE;
     }
-    
+
     // Log a warning for potentially problematic high page numbers, but don't restrict
     if (page > THEORETICAL_MAX_PAGES) {
       console.warn(`Requested page ${page} is very high. The Pokemon TCG API may return empty results.`);
@@ -63,8 +64,8 @@ serve(async (req) => {
     if (cachedItem && (Date.now() - cachedItem.timestamp < CACHE_DURATION_MS)) {
       console.log(`Cache hit for ${cacheKey}`);
       return new Response(JSON.stringify(cachedItem.data), {
-        headers: { 
-          "Content-Type": "application/json", 
+        headers: {
+          "Content-Type": "application/json",
           "X-Cache-Status": "HIT",
           ...corsHeaders
         },
@@ -74,10 +75,10 @@ serve(async (req) => {
     console.log(`Cache miss for ${cacheKey}. Fetching from API...`);
     try {
       const response = await PokemonTCG.findCardsByQueries({ q: query, page, pageSize });
-      
+
       // Calculate total count (approximate)
       const totalCount = response.totalCount || response.length * 10;
-      
+
       // Create response object with data and metadata
       const responseObj = {
         data: response,
@@ -88,25 +89,25 @@ serve(async (req) => {
         // Include theoretical max pages in metadata (for UI information)
         theoreticalMaxPages: THEORETICAL_MAX_PAGES
       };
-      
+
       cache.set(cacheKey, { data: responseObj, timestamp: Date.now() });
       console.log(`Fetched and cached ${response.length} cards with totalCount ${totalCount}.`);
-      
+
       return new Response(JSON.stringify(responseObj), {
-        headers: { 
-          "Content-Type": "application/json", 
+        headers: {
+          "Content-Type": "application/json",
           "X-Cache-Status": "MISS",
           ...corsHeaders
         },
       });
     } catch (error) {
       console.error("Error fetching cards from Pokemon TCG API:", error);
-      return new Response(JSON.stringify({ 
+      return new Response(JSON.stringify({
         error: error.message,
         success: false
       }), {
         status: 500,
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           ...corsHeaders
         },
@@ -114,9 +115,9 @@ serve(async (req) => {
     }
   } else if (path.startsWith('/cards/') && req.method === 'GET') {
     const cardId = path.split('/')[2]; // Extract card ID from path like /cards/xy7-54
-    
+
     if (!cardId) {
-        return new Response(JSON.stringify({ error: 'Card ID missing' }), { 
+        return new Response(JSON.stringify({ error: 'Card ID missing' }), {
           status: 400,
           headers: {
             "Content-Type": "application/json",
@@ -131,8 +132,8 @@ serve(async (req) => {
     if (cachedItem && (Date.now() - cachedItem.timestamp < CACHE_DURATION_MS)) {
       console.log(`Cache hit for ${cacheKey}`);
       return new Response(JSON.stringify(cachedItem.data), {
-        headers: { 
-          "Content-Type": "application/json", 
+        headers: {
+          "Content-Type": "application/json",
           "X-Cache-Status": "HIT",
           ...corsHeaders
         },
@@ -145,20 +146,20 @@ serve(async (req) => {
       cache.set(cacheKey, { data: response, timestamp: Date.now() });
       console.log(`Fetched and cached details for card ${cardId}.`);
       return new Response(JSON.stringify(response), {
-        headers: { 
-          "Content-Type": "application/json", 
+        headers: {
+          "Content-Type": "application/json",
           "X-Cache-Status": "MISS",
           ...corsHeaders
         },
       });
     } catch (error) {
       console.error(`Error fetching card ${cardId} from Pokemon TCG API:`, error);
-      return new Response(JSON.stringify({ 
+      return new Response(JSON.stringify({
         error: error.message,
         success: false
       }), {
         status: 500,
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           ...corsHeaders
         },
@@ -166,10 +167,10 @@ serve(async (req) => {
     }
   }
 
-  // --- Fallback for unhandled routes --- 
+  // --- Fallback for unhandled routes ---
   return new Response(JSON.stringify({ message: "Endpoint not found" }), {
     status: 404,
-    headers: { 
+    headers: {
       "Content-Type": "application/json",
       ...corsHeaders
     },

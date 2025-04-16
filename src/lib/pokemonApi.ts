@@ -1,25 +1,15 @@
 import { PokemonCard, CardPrices } from './types';
-// Import the Pokemon TCG SDK
-import { findCardsByQueries, Card, findCardByID, PokemonTCG } from 'pokemon-tcg-sdk-typescript/dist/sdk';
 
 // --- Add Filter Type Definition (Keep this if used elsewhere) ---
-interface CardFilters {
+export interface CardFilters {
   set?: string;
   rarity?: string;
   type?: string;
   supertype?: string;
 }
 
-// Get Pokemon TCG API Key from environment variables
-const apiKey = process.env.NEXT_PUBLIC_POKEMON_TCG_API_KEY;
-
-// Configure the SDK with the API key
-if (apiKey) {
-  PokemonTCG.configure({ apiKey });
-  console.log('Pokemon TCG SDK configured with API key');
-} else {
-  console.warn('Pokemon TCG API Key not found. API rate limits may apply.');
-}
+// Base URL for our server-side API routes
+const apiBaseUrl = '/api';
 
 // Helper function to map API response (assuming Edge Func returns SDK structure)
 // We need a similar type definition for the expected response from the edge function
@@ -59,107 +49,71 @@ function mapApiCardToPokemonCard(apiCard: ApiCard): PokemonCard {
   };
 }
 
-// --- fetchAllPokemonCards - Updated to use SDK directly ---
+// --- fetchAllPokemonCards - Updated to use server-side API route ---
 // This function might need complete rethinking or removal if we fetch paged
-// Or call the SDK multiple times if needed.
+// Or call the API multiple times if needed.
 export async function fetchAllPokemonCards(): Promise<PokemonCard[]> {
   console.warn("fetchAllPokemonCards is likely inefficient. Consider using paged fetching.");
-  // For now, let's fetch a large first page as a placeholder
-  const limit = 250; // Max page size
-  const queryParams = {
-    q: 'supertype:Pokemon',
-    page: 1,
-    pageSize: limit,
-    orderBy: 'nationalPokedexNumbers'
-  };
 
   try {
-    console.log(`Fetching initial batch via SDK with params:`, queryParams);
-    const apiCards = await findCardsByQueries(queryParams);
+    // Make request to server-side API route
+    const response = await fetch(`${apiBaseUrl}/all-cards`);
 
-    console.log(`Fetched ${apiCards.length} cards via SDK.`);
-    return apiCards.map(mapApiCardToPokemonCard);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch all cards: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log(`Fetched ${data.cards?.length || 0} cards via server API.`);
+    return data.cards || [];
 
   } catch (error) {
-    console.error('Error fetching cards via SDK in fetchAllPokemonCards:', error);
+    console.error('Error fetching cards via server API in fetchAllPokemonCards:', error);
     return [];
   }
 }
 
-// --- fetchCardsPaged - Updated to use SDK directly ---
+// --- fetchCardsPaged - Updated to use server-side API route ---
 export async function fetchCardsPaged(
   page: number,
   limit: number,
   // Filters can now potentially include a 'name' for searching
   filters: CardFilters & { name?: string } = {}
 ): Promise<{ cards: PokemonCard[], totalCount: number, totalPages: number, isEmptyPage: boolean }> {
-  console.log(`Fetching page ${page} with limit ${limit} via SDK. Filters:`, filters);
-
-  // Build query parameters for the SDK
-  const queryParams: any = {
-    page,
-    pageSize: limit,
-    orderBy: 'nationalPokedexNumbers'
-  };
-
-  // Build query string for 'q' param
-  const filterParts: string[] = [];
-
-  // Add name search if present
-  if (filters.name) {
-      filterParts.push(`(name:"*${filters.name}*")`); // Use wildcards
-  }
-
-  // Add other filters
-  if (filters.supertype) {
-      filterParts.push(`(supertype:"${filters.supertype}")`);
-  } else if (!filters.name) {
-      // Default to Pokemon only if NOT doing a name search (to allow searching non-Pokemon cards)
-      filterParts.push(`(supertype:"Pokemon")`);
-  }
-  if (filters.set) {
-    filterParts.push(`(set.name:"${filters.set}")`);
-  }
-  if (filters.rarity) {
-    filterParts.push(`(rarity:"${filters.rarity}")`);
-  }
-  if (filters.type) {
-    filterParts.push(`(types:"${filters.type}")`);
-  }
-
-  // Join with AND
-  const queryString = filterParts.join(' AND ');
-  if (queryString) {
-    queryParams.q = queryString;
-  }
-
-  console.log("SDK: Using query params:", queryParams);
+  console.log(`Fetching page ${page} with limit ${limit} via server API. Filters:`, filters);
 
   try {
-    // Use the SDK to fetch cards
-    const apiCards = await findCardsByQueries(queryParams);
+    // Build query parameters for the API request
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
 
-    // Calculate total pages based on the total count
-    // The SDK doesn't provide totalCount directly, so we estimate it
-    // This is an approximation - the actual count might be different
-    const totalCount = apiCards.totalCount || apiCards.length * 10; // Estimate if not provided
-    const totalPages = Math.ceil(totalCount / limit);
+    // Add filters to query parameters
+    if (filters.name) params.append('name', filters.name);
+    if (filters.supertype) params.append('supertype', filters.supertype);
+    if (filters.set) params.append('set', filters.set);
+    if (filters.rarity) params.append('rarity', filters.rarity);
+    if (filters.type) params.append('type', filters.type);
 
-    // Check if we got an empty page
-    const isEmptyPage = apiCards.length === 0;
+    // Make request to server-side API route
+    const response = await fetch(`${apiBaseUrl}/cards-paged?${params}`);
 
-    console.log(`Fetched ${apiCards.length} cards (total: ~${totalCount}, pages: ~${totalPages}) via SDK for page ${page}`);
-    const cards = apiCards.map(mapApiCardToPokemonCard);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch cards page ${page}: ${response.status}`);
+    }
+
+    const data = await response.json();
 
     return {
-      cards,
-      totalCount,
-      totalPages,
-      isEmptyPage
+      cards: data.cards || [],
+      totalCount: data.totalCount || 0,
+      totalPages: data.totalPages || 1,
+      isEmptyPage: data.isEmptyPage || data.cards?.length === 0
     };
 
   } catch (error) {
-    console.error(`Error fetching page ${page} via SDK:`, error);
+    console.error(`Error fetching page ${page} via server API:`, error);
     return {
       cards: [],
       totalCount: 0,
@@ -169,52 +123,49 @@ export async function fetchCardsPaged(
   }
 }
 
-// --- fetchCardsBySet - Updated to use SDK directly ---
+// --- fetchCardsBySet - Updated to use server-side API route ---
 export async function fetchCardsBySet(setId: string): Promise<PokemonCard[]> {
-  console.log(`Fetching cards for set: ${setId} via SDK`);
-
-  const queryParams = {
-      q: `set.id:${setId}`,
-      pageSize: 250, // Fetch up to 250 cards
-      orderBy: 'number',
-  };
+  console.log(`Fetching cards for set: ${setId} via server API`);
 
   try {
-    // Use the SDK to fetch cards by set
-    const apiCards = await findCardsByQueries(queryParams);
+    // Make request to server-side API route
+    const response = await fetch(`${apiBaseUrl}/cards-by-set?setId=${encodeURIComponent(setId)}`);
 
-    console.log(`Fetched ${apiCards.length} cards for set ${setId} via SDK`);
-    return apiCards.map(mapApiCardToPokemonCard);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch cards for set ${setId}: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.cards || [];
 
   } catch (error) {
-    console.error('Error fetching cards by set via SDK:', error);
+    console.error('Error fetching cards by set via server API:', error);
     return [];
   }
 }
 
-// --- fetchCardDetails - Updated to use SDK directly ---
+// --- fetchCardDetails - Updated to use server-side API route ---
 export async function fetchCardDetails(cardId: string): Promise<PokemonCard | null> {
-  console.log(`Fetching details for card ID: ${cardId} via SDK`);
+  console.log(`Fetching details for card ID: ${cardId} via server API`);
 
   try {
-    // Use the SDK to fetch card details
-    const apiCard = await findCardByID(cardId);
+    // Make request to server-side API route
+    const response = await fetch(`${apiBaseUrl}/card-details?cardId=${encodeURIComponent(cardId)}`);
 
-    if (!apiCard) {
-      console.warn(`Card with ID ${cardId} not found by SDK.`);
+    if (response.status === 404) {
+      console.warn(`Card with ID ${cardId} not found.`);
       return null;
     }
 
-    return mapApiCardToPokemonCard(apiCard);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch card details for ${cardId}: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.card || null;
 
   } catch (error) {
-    // Handle 404 errors gracefully
-    if (error instanceof Error && error.message.includes('404')) {
-      console.warn(`Card ${cardId} not found via SDK.`);
-      return null;
-    }
-
-    console.error(`Error fetching details for card ${cardId} via SDK:`, error);
+    console.error(`Error fetching details for card ${cardId} via server API:`, error);
     return null;
   }
 }
