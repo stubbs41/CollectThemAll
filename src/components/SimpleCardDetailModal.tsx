@@ -151,7 +151,7 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
             {/* Left column - Card image */}
             <div className="md:w-[300px] flex-shrink-0">
               <div className="relative w-full aspect-[5/7]">
-                <Image 
+                <Image
                   src={getProxiedImageUrl(displayedCard.images?.large || displayedCard.images?.small || '/images/card-placeholder.png')}
                   alt={displayedCard.name || 'Pokemon Card'}
                   fill
@@ -160,7 +160,7 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
                 />
               </div>
             </div>
-            
+
             {/* Right column - Card details */}
             <div className="flex-1 flex flex-col gap-4">
               {/* Card header */}
@@ -169,12 +169,12 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
                   {displayedCard.name || 'Unknown Card'}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  {displayedCard.set?.name || 'Unknown Set'} • 
-                  {displayedCard.number || '?'} / ? • 
+                  {displayedCard.set?.name || 'Unknown Set'} •
+                  {displayedCard.number || '?'} / ? •
                   {displayedCard.rarity || 'N/A'}
                 </p>
               </div>
-              
+
               {/* Pricing section */}
               <div className="border-t border-gray-200 pt-4">
                 <h3 className="text-lg font-semibold">Pricing</h3>
@@ -191,7 +191,7 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
                   <p className="text-gray-500 mt-2">No pricing information available</p>
                 )}
               </div>
-              
+
               {/* Print selector */}
               <div className="border-t border-gray-200 pt-4">
                 <h3 className="text-lg font-semibold">Other Prints</h3>
@@ -200,7 +200,18 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
                     prints.map(print => (
                       <button
                         key={print.id}
-                        onClick={() => setSelectedPrintId(print.id)}
+                        onClick={() => {
+                          console.log(`Selecting print: ${print.id}`);
+                          setSelectedPrintId(print.id);
+                          // Force a re-fetch of card details when selecting a different print
+                          if (print.id !== cardId) {
+                            fetchCardDetails(print.id).then(details => {
+                              if (details) {
+                                setCard(details);
+                              }
+                            });
+                          }
+                        }}
                         className={`px-2 py-1 text-sm rounded border ${selectedPrintId === print.id ? 'bg-blue-100 border-blue-500' : 'bg-gray-100 border-gray-300'}`}
                       >
                         {print.set?.name || 'Unknown Set'}
@@ -211,15 +222,65 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
                   )}
                 </div>
               </div>
-              
+
               {/* Collection actions */}
               <div className="border-t border-gray-200 pt-4 mt-2">
                 <h3 className="text-lg font-semibold">Collection Actions</h3>
                 <div className="mt-2 flex gap-2">
-                  <button className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+                  <button
+                    className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                    onClick={() => {
+                      // Call API to add to collection
+                      fetch('/api/collections/add', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          cardId: displayedCard?.id,
+                          collectionType: 'have'
+                        }),
+                      })
+                      .then(response => {
+                        if (response.ok) {
+                          alert('Added to collection!');
+                        } else {
+                          alert('Please sign in to add to your collection');
+                        }
+                      })
+                      .catch(error => {
+                        console.error('Error adding to collection:', error);
+                      });
+                    }}
+                  >
                     Add to Collection
                   </button>
-                  <button className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">
+                  <button
+                    className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+                    onClick={() => {
+                      // Call API to add to wishlist
+                      fetch('/api/collections/add', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          cardId: displayedCard?.id,
+                          collectionType: 'want'
+                        }),
+                      })
+                      .then(response => {
+                        if (response.ok) {
+                          alert('Added to wishlist!');
+                        } else {
+                          alert('Please sign in to add to your wishlist');
+                        }
+                      })
+                      .catch(error => {
+                        console.error('Error adding to wishlist:', error);
+                      });
+                    }}
+                  >
                     Add to Wishlist
                   </button>
                 </div>
