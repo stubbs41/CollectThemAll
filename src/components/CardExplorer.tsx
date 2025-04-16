@@ -39,7 +39,8 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
   const [emptyPageMessage, setEmptyPageMessage] = useState<string | null>(null); // Message when a page has no cards
 
   // Search related state
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(""); // What the user types in the search box
+  const [activeSearchTerm, setActiveSearchTerm] = useState(""); // The actual term being searched
   const [isSearching, setIsSearching] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false);
 
@@ -288,19 +289,19 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
 
   // Effect to fetch data OR apply client-side filters
   useEffect(() => {
-    console.log("Effect triggered: searchPerformed=", searchPerformed, "currentPage=", currentPage, "filters=", filters); // Log effect trigger
+    console.log("Effect triggered: searchPerformed=", searchPerformed, "currentPage=", currentPage, "filters=", filters, "activeSearchTerm=", activeSearchTerm); // Log effect trigger
 
-    if (searchPerformed && searchQuery.trim()) {
+    if (searchPerformed && activeSearchTerm.trim()) {
       // Search is active: Call search API (which sets fetchedCards)
       console.log("Calling searchCards API...");
-      searchCards(searchQuery, currentPage);
+      searchCards(activeSearchTerm, currentPage);
     } else {
       // No search: Call paged API with filters (sets fetchedCards and displayedCards)
       console.log("Calling fetchDataForPage API...");
       fetchDataForPage(currentPage, filters);
     }
     // Cleanup function is handled by the specific fetch/search calls
-  }, [currentPage, filters, searchPerformed, searchQuery, fetchDataForPage, searchCards]);
+  }, [currentPage, filters, searchPerformed, activeSearchTerm, fetchDataForPage, searchCards]);
 
   // --- Effect to apply client-side filters AFTER search results arrive ---
   useEffect(() => {
@@ -320,9 +321,11 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
+      // Only set the active search term when the search button is clicked
+      setActiveSearchTerm(searchQuery);
       setCurrentPage(1);
       setSearchPerformed(true);
-      // useEffect will now call searchCards because searchPerformed is true
+      // useEffect will now call searchCards because searchPerformed is true and activeSearchTerm is set
     } else {
         // If search is submitted with empty query, clear search/filters
         handleClearSearch();
@@ -332,6 +335,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
   // Handle clearing the search
   const handleClearSearch = () => {
     setSearchQuery("");
+    setActiveSearchTerm(""); // Also clear the active search term
     setSearchPerformed(false);
     // No need to reset filters here, maybe user wants to keep them?
     // Let useEffect handle refetching paged data without search term
@@ -428,6 +432,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
                 <span key={key} className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full flex items-center">
                   {key}: {value}
                   <button
+                    type="button"
                     onClick={() => updateFilters({ [key]: undefined })} // Clear specific filter
                     className="ml-1 text-red-500 hover:text-red-700"
                   >
@@ -437,6 +442,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
               ) : null)}
               {Object.values(filters).some(v => v) && (
                   <button
+                    type="button"
                     onClick={clearFilters}
                     className="text-xs text-blue-600 hover:underline ml-1"
                   >
@@ -450,8 +456,8 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
       {/* Search status message - adjust to reflect client filtering? */}
       {searchPerformed && !emptyPageMessage && (
           <div className="max-w-4xl mx-auto mt-2 text-sm text-gray-600">
-            {isLoading ? `Searching for "${searchQuery}"...` :
-            `Displaying ${displayedCards.length} cards matching "${searchQuery}"${Object.values(filters).some(v=>v) ? ' and filters' : ''}.`
+            {isLoading ? `Searching for "${activeSearchTerm}"...` :
+            `Displaying ${displayedCards.length} cards matching "${activeSearchTerm}"${Object.values(filters).some(v=>v) ? ' and filters' : ''}.`
             }
           </div>
       )}
@@ -479,6 +485,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
           <p className="text-lg text-amber-600 mb-2">{emptyPageMessage}</p>
           <p className="text-md text-gray-600">Try navigating to a lower page number or adjusting your search/filters.</p>
           <button
+            type="button"
             onClick={() => setCurrentPage(1)}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
           >
@@ -488,7 +495,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
       // -- Check displayedCards for empty message --
       ) : !isLoading && displayedCards.length === 0 ? (
           <div className="text-center p-10 text-lg text-gray-500">
-              {searchPerformed ? `No cards found matching "${searchQuery}"${Object.values(filters).some(v=>v) ? ' and filters' : ''}.` : 'No cards found matching filters.'}
+              {searchPerformed ? `No cards found matching "${activeSearchTerm}"${Object.values(filters).some(v=>v) ? ' and filters' : ''}.` : 'No cards found matching filters.'}
           </div>
       ) : (
         <CardBinder
