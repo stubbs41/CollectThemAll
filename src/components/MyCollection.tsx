@@ -13,8 +13,9 @@ import AdvancedFilterPanel, { FilterCriteria, SortOption as AdvancedSortOption }
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { preloadImages } from '@/lib/utils';
-import { FunnelIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
+import { FunnelIcon, CurrencyDollarIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { CollectionType } from '@/services/CollectionService';
+import { shouldUpdatePrices, updatePriceTimestamp, getLastUpdateTimeFormatted, getTimeUntilNextUpdate } from '@/lib/priceUtils';
 
 // Define a type for the collection items we expect from the API
 interface CollectionItem {
@@ -51,6 +52,8 @@ export default function MyCollection() {
   const [isBatchMoverOpen, setIsBatchMoverOpen] = useState(false);
   const [isUpdatingPrices, setIsUpdatingPrices] = useState(false);
   const [priceUpdateMessage, setPriceUpdateMessage] = useState<string | null>(null);
+  const [lastUpdateTime, setLastUpdateTime] = useState<string>('Never updated');
+  const [timeUntilNextUpdate, setTimeUntilNextUpdate] = useState<string>('Update needed');
 
   // State for sorting and filtering
   const [sortBy, setSortBy] = useState<SortOption>('newest');
@@ -306,12 +309,37 @@ export default function MyCollection() {
     }
   };
 
+  // Update price info states
+  const updatePriceInfoStates = useCallback(() => {
+    setLastUpdateTime(getLastUpdateTimeFormatted());
+    setTimeUntilNextUpdate(getTimeUntilNextUpdate());
+  }, []);
+
+  // Effect to check if prices need to be updated when component mounts
+  useEffect(() => {
+    // Update the price info states
+    updatePriceInfoStates();
+
+    // Set up an interval to update the time until next update
+    const intervalId = setInterval(() => {
+      updatePriceInfoStates();
+    }, 60000); // Update every minute
+
+    // Check if prices need to be updated
+    if (session && shouldUpdatePrices() && !isUpdatingPrices) {
+      // Auto-update prices when needed
+      handleUpdateMarketPrices(true);
+    }
+
+    return () => clearInterval(intervalId);
+  }, [session, isUpdatingPrices, updatePriceInfoStates]);
+
   // Handle updating market prices
-  const handleUpdateMarketPrices = async () => {
+  const handleUpdateMarketPrices = async (isAutoUpdate = false) => {
     if (isUpdatingPrices) return;
 
     setIsUpdatingPrices(true);
-    setPriceUpdateMessage('Updating market prices...');
+    setPriceUpdateMessage(isAutoUpdate ? 'Auto-updating market prices...' : 'Updating market prices...');
 
     try {
       const response = await fetch(`/api/collections/update-prices?groupName=${encodeURIComponent(activeGroup)}`);
@@ -323,6 +351,10 @@ export default function MyCollection() {
 
       const data = await response.json();
       setPriceUpdateMessage(`Successfully updated ${data.updated} of ${data.total} cards`);
+
+      // Update the price timestamp
+      updatePriceTimestamp();
+      updatePriceInfoStates();
 
       // Refresh collections to show updated prices
       await refreshCollections();
@@ -423,15 +455,22 @@ export default function MyCollection() {
               >
                 Move Cards
               </button>
-              <button
-                type="button"
-                onClick={handleUpdateMarketPrices}
-                disabled={isUpdatingPrices}
-                className="px-3 py-1.5 text-sm font-medium rounded bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
-              >
-                <CurrencyDollarIcon className="h-4 w-4 mr-1" />
-                {isUpdatingPrices ? 'Updating...' : 'Update Prices'}
-              </button>
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => handleUpdateMarketPrices(false)}
+                  disabled={isUpdatingPrices}
+                  className="px-3 py-1.5 text-sm font-medium rounded bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
+                  title={`Last updated: ${lastUpdateTime}`}
+                >
+                  <CurrencyDollarIcon className="h-4 w-4 mr-1" />
+                  {isUpdatingPrices ? 'Updating...' : 'Update Prices'}
+                </button>
+                <div className="text-xs text-gray-500 mt-1 flex items-center">
+                  <ClockIcon className="h-3 w-3 mr-1" />
+                  <span>Next update: {timeUntilNextUpdate}</span>
+                </div>
+              </div>
             </div>
           </div>
 
