@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/Users/stubbs41/Documents/PokeBinder/logs/.1f4b4f9e916df01f66cdcc121cf1f96705a8a984-audit.json",
+    "files": [
+        {
+            "date": 1744770285747,
+            "name": "/Users/stubbs41/Documents/PokeBinder/logs/mcp-puppeteer-2025-04-15.log",
+            "hash": "971ccbcf5fa642aec373f78c0b85b873a82eb70048a9da89c2c9fe741b894122"
+        }
+    ],
+    "hashType": "sha256"
+}

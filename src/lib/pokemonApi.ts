@@ -59,7 +59,7 @@ function mapApiCardToPokemonCard(apiCard: ApiCard): PokemonCard {
   };
 }
 
-// --- fetchAllPokemonCards - Refactor to use Edge Function --- 
+// --- fetchAllPokemonCards - Refactor to use Edge Function ---
 // This function might need complete rethinking or removal if we fetch paged
 // Or call the edge function multiple times if needed.
 export async function fetchAllPokemonCards(): Promise<PokemonCard[]> {
@@ -83,7 +83,15 @@ export async function fetchAllPokemonCards(): Promise<PokemonCard[]> {
     if (!response.ok) {
       throw new Error(`Proxy fetch failed: ${response.statusText}`);
     }
-    const apiCards: ApiCard[] = await response.json();
+
+    // Parse the response from the Edge Function
+    const responseData = await response.json();
+
+    // Check if the response has a data property (new format) or is an array directly (old format)
+    const apiCards: ApiCard[] = Array.isArray(responseData)
+      ? responseData
+      : (responseData.data || []); // Handle both formats
+
     console.log(`Fetched ${apiCards.length} cards via proxy.`);
     return apiCards.map(mapApiCardToPokemonCard);
 
@@ -93,7 +101,7 @@ export async function fetchAllPokemonCards(): Promise<PokemonCard[]> {
   }
 }
 
-// --- fetchCardsPaged - Updated to handle new metadata format --- 
+// --- fetchCardsPaged - Updated to handle new metadata format ---
 export async function fetchCardsPaged(
   page: number,
   limit: number,
@@ -111,12 +119,12 @@ export async function fetchCardsPaged(
 
   // Build query string for 'q' param
   const filterParts: string[] = [];
-  
+
   // Add name search if present
   if (filters.name) {
       filterParts.push(`(name:"*${filters.name}*")`); // Use wildcards
   }
-  
+
   // Add other filters
   if (filters.supertype) {
       filterParts.push(`(supertype:"${filters.supertype}")`);
@@ -124,7 +132,7 @@ export async function fetchCardsPaged(
       // Default to Pokemon only if NOT doing a name search (to allow searching non-Pokemon cards)
       // Although the proxy currently defaults to supertype:Pokemon on its side if q is empty...
       // Let's be explicit for clarity, but this might need sync with proxy logic
-      filterParts.push(`(supertype:"Pokemon")`); 
+      filterParts.push(`(supertype:"Pokemon")`);
   }
   if (filters.set) {
     filterParts.push(`(set.name:"${filters.set}")`);
@@ -135,13 +143,13 @@ export async function fetchCardsPaged(
   if (filters.type) {
     filterParts.push(`(types:"${filters.type}")`);
   }
-  
+
   // Join with AND. If empty, the proxy function should handle a default query.
   const queryString = filterParts.join(' AND ');
   if (queryString) {
     params.set('q', queryString);
   }
-  
+
   console.log("Proxy Lib: Sending Params:", params.toString());
 
   try {
@@ -153,40 +161,44 @@ export async function fetchCardsPaged(
     if (!response.ok) {
       throw new Error(`Proxy fetch failed: ${response.statusText}`);
     }
-    
-    // Parse the updated response format from the Edge Function
-    const responseData = await response.json(); 
-    
-    // Handle the new response format
-    const apiCards: ApiCard[] = responseData.data || []; // Cards are in the data property
-    const totalCount: number = responseData.totalCount || 0; // Get total count
-    const totalPages: number = responseData.totalPages || Math.ceil(totalCount / limit); // Get total pages
-    
+
+    // Parse the response from the Edge Function
+    const responseData = await response.json();
+
+    // Check if the response has a data property (new format) or is an array directly (old format)
+    const apiCards: ApiCard[] = Array.isArray(responseData)
+      ? responseData
+      : (responseData.data || []); // Handle both formats
+
+    // Get metadata from response or calculate defaults
+    const totalCount: number = responseData.totalCount || apiCards.length || 0;
+    const totalPages: number = responseData.totalPages || Math.ceil(totalCount / limit) || 1;
+
     // Check if we got an empty page (when page is higher than available data)
     const isEmptyPage = apiCards.length === 0;
-    
+
     console.log(`Fetched ${apiCards.length} cards (total: ${totalCount}, pages: ${totalPages}) via proxy for page ${page}`);
     const cards = apiCards.map(mapApiCardToPokemonCard);
 
-    return { 
-      cards, 
-      totalCount, 
+    return {
+      cards,
+      totalCount,
       totalPages,
       isEmptyPage
     };
 
   } catch (error) {
     console.error(`Error fetching page ${page} via proxy:`, error);
-    return { 
-      cards: [], 
-      totalCount: 0, 
+    return {
+      cards: [],
+      totalCount: 0,
       totalPages: 1,
       isEmptyPage: true
     };
   }
 }
 
-// --- fetchCardsBySet - Refactor to use Edge Function --- 
+// --- fetchCardsBySet - Refactor to use Edge Function ---
 export async function fetchCardsBySet(setId: string): Promise<PokemonCard[]> {
   console.log(`Fetching cards for set: ${setId} via proxy`);
 
@@ -205,7 +217,14 @@ export async function fetchCardsBySet(setId: string): Promise<PokemonCard[]> {
      if (!response.ok) {
       throw new Error(`Proxy fetch failed: ${response.statusText}`);
     }
-    const apiCards: ApiCard[] = await response.json();
+
+    // Parse the response from the Edge Function
+    const responseData = await response.json();
+
+    // Check if the response has a data property (new format) or is an array directly (old format)
+    const apiCards: ApiCard[] = Array.isArray(responseData)
+      ? responseData
+      : (responseData.data || []); // Handle both formats
 
     console.log(`Fetched ${apiCards.length} cards for set ${setId} via proxy`);
     return apiCards.map(mapApiCardToPokemonCard);
@@ -216,7 +235,7 @@ export async function fetchCardsBySet(setId: string): Promise<PokemonCard[]> {
   }
 }
 
-// --- fetchCardDetails - Refactor to use Edge Function --- 
+// --- fetchCardDetails - Refactor to use Edge Function ---
 export async function fetchCardDetails(cardId: string): Promise<PokemonCard | null> {
   console.log(`Fetching details for card ID: ${cardId} via proxy`);
 
