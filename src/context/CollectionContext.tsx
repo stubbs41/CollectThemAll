@@ -369,12 +369,23 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   const shareCollection = useCallback(async (
     groupName: string,
     sharingLevel: 'group' | 'have' | 'want',
-    expiresInDays: number = 7
+    expiresInDays: number = 7,
+    options?: {
+      is_collaborative?: boolean;
+      password?: string;
+      permission_level?: 'read' | 'write';
+      allow_comments?: boolean;
+    }
   ): Promise<{success: boolean, shareId?: string, error?: string}> => {
     if (!session) return { success: false, error: 'Not authenticated' };
 
     try {
-      return await collectionService.createSharedCollection(groupName, sharingLevel, expiresInDays);
+      return await collectionService.createSharedCollection(
+        groupName,
+        sharingLevel,
+        expiresInDays,
+        options
+      );
     } catch (error: any) {
       console.error('Error sharing collection:', error);
       return { success: false, error: error.message || 'An unexpected error occurred' };

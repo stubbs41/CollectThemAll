@@ -798,7 +798,13 @@ export default class CollectionService {
   async createSharedCollection(
     groupName: string,
     sharingLevel: 'group' | 'have' | 'want',
-    expiresInDays: number = 7
+    expiresInDays: number = 7,
+    options?: {
+      is_collaborative?: boolean;
+      password?: string;
+      permission_level?: 'read' | 'write';
+      allow_comments?: boolean;
+    }
   ): Promise<{ success: boolean, shareId?: string, error?: string }> {
     if (!groupName.trim()) {
       return { success: false, error: 'Group name cannot be empty' };
@@ -873,7 +879,12 @@ export default class CollectionService {
           expires_at: expiresAt.toISOString(),
           status: 'active',
           view_count: 0,
-          sharing_level: sharingLevel
+          sharing_level: sharingLevel,
+          is_collaborative: options?.is_collaborative || false,
+          password_protected: !!options?.password,
+          password_hash: options?.password ? await this.hashPassword(options.password) : null,
+          sharing_permission: options?.permission_level || 'read',
+          allow_comments: options?.allow_comments || false
         })
         .select()
         .single();
@@ -1057,5 +1068,21 @@ export default class CollectionService {
    */
   invalidateCache(): void {
     this.cache.lastFetched = null;
+  }
+
+  /**
+   * Hash a password for storage
+   */
+  private async hashPassword(password: string): Promise<string> {
+    // In a real implementation, you would use a proper password hashing library
+    // For this example, we'll use a simple hash function
+    return await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(password)
+    ).then(hash => {
+      return Array.from(new Uint8Array(hash))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+    });
   }
 }
