@@ -184,3 +184,57 @@ export function mapApiCardToPokemonCard(apiCard: any): PokemonCard {
     } : undefined,
   };
 }
+
+// Find cards by IDs
+export async function findCardsByIds(cardIds: string[]) {
+  try {
+    if (!cardIds || cardIds.length === 0) {
+      return [];
+    }
+
+    // Check cache first
+    const cacheKey = createCacheKey(CACHE_KEYS.CARD_DETAILS, { ids: cardIds.join(',') });
+    const cachedCards = getWithExpiry<any[]>(cacheKey);
+
+    if (cachedCards) {
+      return cachedCards;
+    }
+
+    // Build the query string for multiple IDs
+    const idQuery = cardIds.map(id => `id:${id}`).join(' OR ');
+
+    // Set a higher page size to ensure we get all cards (max 250 per API call)
+    const pageSize = Math.min(250, cardIds.length);
+    let apiCards: any[] = [];
+
+    // If we have more than 250 cards, we need to make multiple API calls
+    if (cardIds.length > 250) {
+      // Split the card IDs into chunks of 250
+      const chunks = [];
+      for (let i = 0; i < cardIds.length; i += 250) {
+        chunks.push(cardIds.slice(i, i + 250));
+      }
+
+      // Make API calls for each chunk
+      for (const chunk of chunks) {
+        const chunkQuery = chunk.map(id => `id:${id}`).join(' OR ');
+        const { cards } = await searchCards(chunkQuery, 1, chunk.length);
+        apiCards = [...apiCards, ...cards];
+      }
+    } else {
+      // Single API call for smaller collections
+      const { cards } = await searchCards(idQuery, 1, pageSize);
+      apiCards = cards;
+    }
+
+    // Cache the results
+    if (apiCards.length > 0) {
+      setWithExpiry(cacheKey, apiCards, CACHE_TIMES.MEDIUM);
+    }
+
+    return apiCards;
+  } catch (error) {
+    console.error('Error fetching cards by IDs:', error);
+    return [];
+  }
+}
