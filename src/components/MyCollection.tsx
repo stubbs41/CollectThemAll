@@ -9,9 +9,11 @@ import CollectionImportExport from '@/components/collection/CollectionImportExpo
 import CollectionGroupSelector from '@/components/collection/CollectionGroupSelector';
 import CollectionGroupModal from '@/components/collection/CollectionGroupModal';
 import BatchCardMover from '@/components/collection/BatchCardMover';
+import AdvancedFilterPanel, { FilterCriteria, SortOption as AdvancedSortOption } from '@/components/collection/AdvancedFilterPanel';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { preloadImages } from '@/lib/utils';
+import { FunnelIcon } from '@heroicons/react/24/outline';
 import { CollectionType } from '@/services/CollectionService';
 
 // Define a type for the collection items we expect from the API
@@ -52,6 +54,10 @@ export default function MyCollection() {
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
+  const [showAdvancedFilter, setShowAdvancedFilter] = useState(false);
+  const [advancedFilterCriteria, setAdvancedFilterCriteria] = useState<FilterCriteria>({});
+  const [advancedSortBy, setAdvancedSortBy] = useState<AdvancedSortOption>('newest');
+  const [filteredByAdvanced, setFilteredByAdvanced] = useState(false);
 
   // Handle search form submission
   const handleSearch = (e: React.FormEvent) => {
@@ -63,6 +69,8 @@ export default function MyCollection() {
   const handleClearSearch = () => {
     setSearchQuery('');
     setActiveFilter('');
+    setFilteredByAdvanced(false);
+    setAdvancedFilterCriteria({});
   };
 
   // Get the current collection based on activeGroup and activeType
@@ -132,7 +140,8 @@ export default function MyCollection() {
     // First apply search filter
     let result = currentCollection;
 
-    if (activeFilter.trim()) {
+    // Apply basic search filter if not using advanced filters
+    if (!filteredByAdvanced && activeFilter.trim()) {
       const query = activeFilter.toLowerCase().trim();
       result = result.filter(item =>
         (item.card_name?.toLowerCase() || '').includes(query) ||
@@ -140,24 +149,114 @@ export default function MyCollection() {
       );
     }
 
+    // Apply advanced filters if enabled
+    if (filteredByAdvanced) {
+      // Apply name filter
+      if (advancedFilterCriteria.name) {
+        const nameFilter = advancedFilterCriteria.name.toLowerCase();
+        result = result.filter(item =>
+          (item.card_name?.toLowerCase() || '').includes(nameFilter)
+        );
+      }
+
+      // Apply set filter
+      if (advancedFilterCriteria.set) {
+        result = result.filter(item =>
+          item.card?.set?.name === advancedFilterCriteria.set
+        );
+      }
+
+      // Apply rarity filter
+      if (advancedFilterCriteria.rarity) {
+        result = result.filter(item =>
+          item.card?.rarity === advancedFilterCriteria.rarity
+        );
+      }
+
+      // Apply type filter
+      if (advancedFilterCriteria.type) {
+        result = result.filter(item =>
+          item.card?.types?.includes(advancedFilterCriteria.type!)
+        );
+      }
+
+      // Apply subtype filter
+      if (advancedFilterCriteria.subtype) {
+        result = result.filter(item =>
+          item.card?.subtypes?.includes(advancedFilterCriteria.subtype!)
+        );
+      }
+
+      // Apply price range filter
+      if (advancedFilterCriteria.minPrice !== undefined || advancedFilterCriteria.maxPrice !== undefined) {
+        result = result.filter(item => {
+          const price = item.market_price || 0;
+          const minOk = advancedFilterCriteria.minPrice === undefined || price >= advancedFilterCriteria.minPrice;
+          const maxOk = advancedFilterCriteria.maxPrice === undefined || price <= advancedFilterCriteria.maxPrice;
+          return minOk && maxOk;
+        });
+      }
+
+      // Apply quantity range filter
+      if (advancedFilterCriteria.minQuantity !== undefined || advancedFilterCriteria.maxQuantity !== undefined) {
+        result = result.filter(item => {
+          const quantity = item.quantity || 0;
+          const minOk = advancedFilterCriteria.minQuantity === undefined || quantity >= advancedFilterCriteria.minQuantity;
+          const maxOk = advancedFilterCriteria.maxQuantity === undefined || quantity <= advancedFilterCriteria.maxQuantity;
+          return minOk && maxOk;
+        });
+      }
+    }
+
     // Then apply sorting
     return [...result].sort((a, b) => {
-      switch (sortBy) {
-        case 'name':
-          return (a.card_name || a.card_id).localeCompare(b.card_name || b.card_id);
-        case 'newest':
-          return new Date(b.added_at).getTime() - new Date(a.added_at).getTime();
-        case 'oldest':
-          return new Date(a.added_at).getTime() - new Date(b.added_at).getTime();
-        case 'quantity':
-          return b.quantity - a.quantity;
-        case 'price':
-          return ((b.market_price || 0) * b.quantity) - ((a.market_price || 0) * a.quantity);
-        default:
-          return 0;
+      // Use advanced sort if enabled
+      if (filteredByAdvanced) {
+        switch (advancedSortBy) {
+          case 'name':
+            return (a.card_name || a.card_id).localeCompare(b.card_name || b.card_id);
+          case 'set':
+            const setA = a.card?.set?.name || '';
+            const setB = b.card?.set?.name || '';
+            return setA.localeCompare(setB);
+          case 'rarity':
+            const rarityA = a.card?.rarity || '';
+            const rarityB = b.card?.rarity || '';
+            return rarityA.localeCompare(rarityB);
+          case 'price_asc':
+            return (a.market_price || 0) - (b.market_price || 0);
+          case 'price_desc':
+            return (b.market_price || 0) - (a.market_price || 0);
+          case 'quantity_asc':
+            return (a.quantity || 0) - (b.quantity || 0);
+          case 'quantity_desc':
+            return (b.quantity || 0) - (a.quantity || 0);
+          case 'newest':
+            return new Date(b.added_at).getTime() - new Date(a.added_at).getTime();
+          case 'oldest':
+            return new Date(a.added_at).getTime() - new Date(b.added_at).getTime();
+          default:
+            return 0;
+        }
+      } else {
+        // Use basic sort
+        switch (sortBy) {
+          case 'name':
+            return (a.card_name || a.card_id).localeCompare(b.card_name || b.card_id);
+          case 'newest':
+            return new Date(b.added_at).getTime() - new Date(a.added_at).getTime();
+          case 'oldest':
+            return new Date(a.added_at).getTime() - new Date(b.added_at).getTime();
+          case 'quantity':
+            return b.quantity - a.quantity;
+          case 'price':
+            return ((b.market_price || 0) * b.quantity) - ((a.market_price || 0) * a.quantity);
+          default:
+            return 0;
+        }
       }
     });
-  }, [currentCollection, activeFilter, sortBy]);
+  }, [currentCollection, activeFilter, sortBy, filteredByAdvanced, advancedFilterCriteria, advancedSortBy]);
 
   // Function to remove a card
   const handleRemoveCard = async (cardId: string, quantity: number) => {
@@ -342,12 +441,64 @@ export default function MyCollection() {
               <option value="price">Price (High-Low)</option>
             </select>
           </div>
+
+          {/* Advanced Filter Button */}
+          <div className="flex-shrink-0">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Advanced
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowAdvancedFilter(!showAdvancedFilter)}
+              className={`px-4 py-2 text-sm rounded-md flex items-center ${showAdvancedFilter ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+            >
+              <FunnelIcon className="h-4 w-4 mr-1" />
+              {showAdvancedFilter ? 'Hide Filters' : 'Advanced Filters'}
+            </button>
+          </div>
         </div>
 
         {/* Active Filter Display */}
-        {activeFilter && (
+        {activeFilter && !filteredByAdvanced && (
           <div className="mt-3 text-sm text-gray-600">
             Showing results for: <span className="font-medium">"{activeFilter}"</span>
+          </div>
+        )}
+
+        {filteredByAdvanced && (
+          <div className="mt-3 text-sm text-gray-600">
+            Showing results with advanced filters
+            <button
+              type="button"
+              onClick={() => {
+                setFilteredByAdvanced(false);
+                setAdvancedFilterCriteria({});
+              }}
+              className="ml-2 text-blue-600 hover:text-blue-800"
+            >
+              Clear Filters
+            </button>
+          </div>
+        )}
+
+        {/* Advanced Filter Panel */}
+        {showAdvancedFilter && (
+          <div className="mt-4">
+            <AdvancedFilterPanel
+              items={new Map(currentCollection.map(item => [item.card_id, item]))}
+              onFilterChange={(filteredItems) => {
+                setFilteredByAdvanced(true);
+                // Store the filter criteria for use in the filteredAndSortedCollection useMemo
+                const criteria = { ...advancedFilterCriteria };
+                setAdvancedFilterCriteria(criteria);
+              }}
+              onSortChange={(newSortOption) => {
+                setAdvancedSortBy(newSortOption);
+              }}
+              initialSortBy={advancedSortBy}
+              initialFilter={advancedFilterCriteria}
+              onClose={() => setShowAdvancedFilter(false)}
+            />
           </div>
         )}
       </div>
