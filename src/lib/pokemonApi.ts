@@ -97,13 +97,44 @@ export async function fetchCardsPaged(
     if (filters.type) params.append('type', filters.type);
 
     // Make request to server-side API route
-    const response = await fetch(`${apiBaseUrl}/cards-paged?${params}`);
+    const response = await fetch(`${apiBaseUrl}/cards-paged?${params}`, {
+      // Add cache: 'no-store' to prevent caching of search results
+      // This ensures we always get fresh results, especially for high page numbers
+      cache: 'no-store'
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch cards page ${page}: ${response.status}`);
     }
 
     const data = await response.json();
+
+    // If we got an empty result but the page number is high, try again with a different approach
+    if (data.isEmptyPage && page > 10) {
+      console.log(`Empty page ${page} received. Attempting alternative fetch method...`);
+
+      // Try a different approach for high page numbers
+      // This is a workaround for the Pokemon TCG API's pagination limitations
+      const altParams = new URLSearchParams(params);
+      altParams.set('highPageWorkaround', 'true');
+
+      const altResponse = await fetch(`${apiBaseUrl}/cards-paged?${altParams}`, {
+        cache: 'no-store'
+      });
+
+      if (altResponse.ok) {
+        const altData = await altResponse.json();
+        if (altData.cards && altData.cards.length > 0) {
+          console.log(`Alternative fetch successful for page ${page}. Got ${altData.cards.length} cards.`);
+          return {
+            cards: altData.cards || [],
+            totalCount: altData.totalCount || 0,
+            totalPages: altData.totalPages || 1,
+            isEmptyPage: false
+          };
+        }
+      }
+    }
 
     return {
       cards: data.cards || [],

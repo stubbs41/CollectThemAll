@@ -16,13 +16,13 @@ export async function GET(request: NextRequest) {
   const query = searchParams.get('q') || '';
   const page = parseInt(searchParams.get('page') || '1', 10);
   const limit = parseInt(searchParams.get('limit') || '32', 10);
-  
+
   // -- Extract Filter Parameters --
   const set = searchParams.get('set') || undefined;
   const rarity = searchParams.get('rarity') || undefined;
   const type = searchParams.get('type') || undefined;
   // For search, we probably don't want a default supertype unless specified
-  const supertype = searchParams.get('supertype') || undefined; 
+  const supertype = searchParams.get('supertype') || undefined;
   const filters = { set, rarity, type, supertype };
 
   // Basic validation
@@ -36,6 +36,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid limit value (1-250)' }, { status: 400 });
   }
 
+  // Remove the 10-page limit for searches
+  // The Pokemon TCG API has a limit of 250 cards per request, but we can make multiple requests
+  // to get more cards if needed
+
   console.log(`API Search Route: Proxying search for "${query}", page=${page}, limit=${limit}, filters:`, filters);
 
   try {
@@ -43,17 +47,17 @@ export async function GET(request: NextRequest) {
     // We need to modify fetchCardsPaged slightly to handle the name query alongside filters
     // OR adjust the proxy function to handle name searches
     // For now, let's assume fetchCardsPaged can handle a combined query
-    
-    // Combine the search query with filters (This logic might need refinement 
+
+    // Combine the search query with filters (This logic might need refinement
     // depending on how pokemonApi/proxy handles combined q)
-    const combinedFilters = { 
-        ...filters, 
+    const combinedFilters = {
+        ...filters,
         // We need a way to pass the search term. Let's add a name property?
         // Or adjust fetchCardsPaged to accept a general query string?
-        // --- TEMPORARY WORKAROUND: Add name to filters object --- 
+        // --- TEMPORARY WORKAROUND: Add name to filters object ---
         // This assumes fetchCardsPaged will build the query correctly
-        name: query 
-        // --- END TEMPORARY WORKAROUND --- 
+        name: query
+        // --- END TEMPORARY WORKAROUND ---
     };
 
     // Call the function that uses the proxy

@@ -166,6 +166,15 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                         priority={index < 8}
                                         loading={index < 16 ? "eager" : "lazy"}
                                         quality={85}
+                                        onError={(e) => {
+                                            // Handle image load errors
+                                            const imgElement = e.currentTarget as HTMLImageElement;
+                                            // Set a fallback image
+                                            imgElement.src = '/images/card-placeholder.svg';
+                                            // Add a class to indicate error
+                                            imgElement.classList.add('image-error');
+                                            console.warn(`Failed to load image for card: ${card.id}`);
+                                        }}
                                     />
                                 </div>
                                 <div className="flex-shrink-0 p-1 h-[58px] text-center bg-gray-200 w-full border-t border-gray-300">
@@ -198,6 +207,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                         className="absolute bottom-0 left-0 right-0 h-7 bg-black/80 flex items-center justify-center z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-150 rounded-b"
                                     >
                                         <button
+                                            type="button"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 removeCardFromCollection(card.id, 'have', defaultGroup);
@@ -214,6 +224,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                             {currentQuantity}
                                         </span>
                                         <button
+                                            type="button"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 addCardToCollection(card.id, card, 'have', defaultGroup);
@@ -261,6 +272,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
          {/* Enhanced Pagination Controls */}
          <div className="text-center text-sm text-gray-600 mt-4 flex items-center justify-center flex-wrap gap-2 w-full">
              <button
+                 type="button"
                  onClick={goToPreviousPage}
                  disabled={currentPage === 1 || isLoading}
                  className="px-4 py-2 rounded text-xs font-semibold transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -272,6 +284,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
              {paginationItems.map((item, index) => (
                  typeof item === 'number' ? (
                      <button
+                         type="button"
                          key={`page-${item}`}
                          onClick={() => goToPage(item)}
                          disabled={item === currentPage || isLoading}
@@ -300,6 +313,9 @@ const CardBinder: React.FC<CardBinderProps> = ({
                     min="1"
                     max={totalPages}
                     className="w-14 h-8 px-2 py-1 text-xs border border-gray-300 rounded-md text-center"
+                    placeholder="#"
+                    title="Enter page number"
+                    aria-label="Page number input"
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                             const pageNum = parseInt((e.target as HTMLInputElement).value);
@@ -313,6 +329,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
                     disabled={isLoading}
                 />
                 <button
+                    type="button"
                     onClick={(e) => {
                         const input = (e.target as HTMLElement).previousElementSibling as HTMLInputElement;
                         const pageNum = parseInt(input.value);
@@ -330,6 +347,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
              </div>
 
              <button
+                 type="button"
                  onClick={goToNextPage}
                  disabled={currentPage >= totalPages || isLoading}
                  className="px-4 py-2 rounded text-xs font-semibold transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
