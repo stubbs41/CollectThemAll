@@ -16,7 +16,9 @@ const nextConfig = {
         pathname: '/**',
       },
     ],
-    unoptimized: true, // For dynamic image dimensions
+    // Enable Next.js image optimization
+    formats: ['image/webp'],
+    minimumCacheTTL: 31536000, // Cache optimized images for 1 year
   },
   // Disable public directories
   skipTrailingSlashRedirect: true,
@@ -43,4 +45,4 @@ const nextConfig = {
   }
 };
 
-module.exports = nextConfig; 
+module.exports = nextConfig;

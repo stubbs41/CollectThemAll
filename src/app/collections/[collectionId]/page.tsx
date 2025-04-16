@@ -54,7 +54,7 @@ const CollectionDetailPage: React.FC = () => {
             console.log(`Fetching ${cardIds.length} cards for collection "${targetCollection.name}" (${collectionId})...`, cardIds);
 
             try {
-                const cardPromises = cardIds.map(id =>
+                const cardPromises = cardIds.map(([id]) =>
                     fetchCardDetails(id).catch(err => {
                         console.error(`Failed fetching card ID ${id}:`, err);
                         return null;
@@ -130,8 +130,8 @@ const CollectionDetailPage: React.FC = () => {
                                     fill
                                     sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
                                     className="object-contain"
-                                    unoptimized={!card.images.small}
-                                    priority={false}
+                                    loading="eager"
+                                    quality={85}
                                 />
                             </div>
                              <div className="p-2 text-center bg-gray-50 border-t border-gray-200">

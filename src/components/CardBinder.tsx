@@ -164,7 +164,8 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                         sizes="(max-width: 768px) 15vw, 10vw"
                                         className="object-contain"
                                         priority={index < 8}
-                                        unoptimized={!card.images.small}
+                                        loading={index < 16 ? "eager" : "lazy"}
+                                        quality={85}
                                     />
                                 </div>
                                 <div className="flex-shrink-0 p-1 h-[58px] text-center bg-gray-200 w-full border-t border-gray-300">

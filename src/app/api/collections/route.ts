@@ -27,6 +27,25 @@ export async function GET(request: NextRequest) {
     // Get collection type from query params (default to 'have')
     const { searchParams } = new URL(request.url);
     const collectionType = searchParams.get('type') || 'have';
+    const countOnly = searchParams.get('countOnly') === 'true';
+
+    // If countOnly is true, just return the total count
+    if (countOnly) {
+      const { data: collection, error: fetchError } = await supabase
+        .from('collections')
+        .select('quantity')
+        .eq('user_id', session.user.id)
+        .eq('collection_type', collectionType);
+
+      if (fetchError) {
+        console.error('Error fetching collection count:', fetchError.message);
+        return NextResponse.json({ error: `Database error: ${fetchError.message}` }, { status: 500 });
+      }
+
+      // Calculate total cards
+      const totalCards = (collection ?? []).reduce((sum, item) => sum + (item.quantity || 0), 0);
+      return NextResponse.json({ totalCards });
+    }
 
     // 2. Fetch collection items for this user
     // RLS ensures we only get rows where collections.user_id matches session.user.id
@@ -90,10 +109,10 @@ export async function POST(request: NextRequest) {
       .upsert(cardDataToUpsert, {
         onConflict: 'user_id,card_id,collection_type',
         ignoreDuplicates: false,
-        // IMPORTANT: If you need to increment quantity on conflict, 
-        // this simple upsert won't work directly. 
+        // IMPORTANT: If you need to increment quantity on conflict,
+        // this simple upsert won't work directly.
         // We need a database function for atomic increment.
-        // Let's stick to setting quantity=1 on conflict for now, 
+        // Let's stick to setting quantity=1 on conflict for now,
         // assuming duplicates shouldn't happen or quantity isn't the goal here.
         // OR, handle increment logic after the upsert if needed.
       })
@@ -103,8 +122,8 @@ export async function POST(request: NextRequest) {
     if (upsertError) {
       console.error('Error upserting card to collection:', upsertError);
        // Check if it's the specific duplicate key error, although upsert should handle it?
-      if (upsertError.code === '23505') { 
-          // This case might indicate a race condition or config issue if upsert 
+      if (upsertError.code === '23505') {
+          // This case might indicate a race condition or config issue if upsert
           // didn't handle the conflict as expected. Maybe log differently.
           console.error('Upsert conflict was not handled automatically:', upsertError);
           return NextResponse.json({ error: 'Conflict updating card quantity.' }, { status: 409 });
@@ -114,9 +133,9 @@ export async function POST(request: NextRequest) {
 
     // Determine if it was an insert or update based on timestamps? Difficult.
     // Upsert returns the final state. Assume success.
-    return NextResponse.json({ 
-        message: 'Card added or updated successfully', 
-        updatedCard: data 
+    return NextResponse.json({
+        message: 'Card added or updated successfully',
+        updatedCard: data
     }, { status: 200 }); // Use 200 OK for upsert
 
   } catch (error) {
@@ -161,12 +180,12 @@ export async function DELETE(request: NextRequest) {
         .eq('card_id', cardId)
         .eq('collection_type', collectionType)
         .single();
-        
+
       if (getError) {
         console.error('Error getting card quantity:', getError.message);
         return NextResponse.json({ error: `Database error: ${getError.message}` }, { status: 500 });
       }
-      
+
       // If quantity is 1, delete the card
       if (!cardData || cardData.quantity <= 1) {
         // Delete logic (same as the non-decrement case below)
@@ -176,13 +195,13 @@ export async function DELETE(request: NextRequest) {
           .from('collections')
           .update({ quantity: cardData.quantity - 1 })
           .eq('id', cardData.id);
-          
+
         if (updateError) {
           console.error('Error decrementing card quantity:', updateError.message);
           return NextResponse.json({ error: `Database error: ${updateError.message}` }, { status: 500 });
         }
-        
-        return NextResponse.json({ 
+
+        return NextResponse.json({
           message: 'Card quantity decremented successfully',
           quantity: cardData.quantity - 1
         }, { status: 200 });

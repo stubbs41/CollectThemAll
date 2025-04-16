@@ -80,7 +80,7 @@ export async function GET(
         .replace(/^https?:\/\//, '')
         .replace(/[^a-zA-Z0-9.-]/g, '_'); // Remove the hardcoded + '.png'
     const cacheFilePath = path.join(CACHE_DIR, cacheFileName);
-    
+
     // Check for special case of known missing image
     const isMarkedAsMissing = cacheFileName.endsWith('_MISSING');
     if (isMarkedAsMissing) {
@@ -97,7 +97,9 @@ export async function GET(
             status: 200,
             headers: {
                 'Content-Type': 'image/png', // Adjust content type if needed
-                'Cache-Control': 'public, max-age=31536000, immutable', // Cache aggressively
+                'Cache-Control': 'public, max-age=31536000, immutable, stale-while-revalidate=86400',
+                'ETag': `"${cacheFileName}"`,
+                'Last-Modified': new Date().toUTCString(),
             },
         });
     } catch (error) {
@@ -109,32 +111,32 @@ export async function GET(
                 console.log(`[Image Cache] MISS: ${originalUrl}`);
                 try {
                     const response = await fetch(originalUrl);
-                    
+
                     // Check if response is ok and is an image
                     if (!response.ok) {
                         console.warn(`[Image Cache] Image not found: ${originalUrl} (${response.status})`);
-                        
+
                         // Mark this URL as known missing for future requests
                         const missingMarker = path.join(CACHE_DIR, cacheFileName + '_MISSING');
                         await fs.writeFile(missingMarker, 'This URL returns an error');
-                        
+
                         // Serve fallback placeholder
                         return servePlaceholderImage();
                     }
-                    
+
                     // Verify content type is an image
                     const contentType = response.headers.get('Content-Type') || '';
                     if (!contentType.startsWith('image/')) {
                         console.warn(`[Image Cache] Not an image: ${originalUrl} (${contentType})`);
-                        
+
                         // Mark this URL as known missing for future requests
                         const missingMarker = path.join(CACHE_DIR, cacheFileName + '_MISSING');
                         await fs.writeFile(missingMarker, 'Content type is not an image');
-                        
+
                         // Serve fallback placeholder
                         return servePlaceholderImage();
                     }
-                    
+
                     if (!response.body) {
                         throw new Error(`No response body received for ${originalUrl}`);
                     }
@@ -144,7 +146,7 @@ export async function GET(
 
                     // Clone the response so we can use one for streaming to client and one for caching
                     const clonedResponse = response.clone();
-                    
+
                     // Start a background task to cache the image (don't await it)
                     cacheImageInBackground(clonedResponse.body as unknown as NodeJS.ReadableStream, cacheFilePath, cacheFileName)
                         .catch(err => console.error(`[Image Cache] Error caching in background: ${err.message}`));
@@ -154,7 +156,9 @@ export async function GET(
                         status: 200,
                         headers: {
                             'Content-Type': contentType || 'image/png',
-                            'Cache-Control': 'public, max-age=31536000, immutable',
+                            'Cache-Control': 'public, max-age=31536000, immutable, stale-while-revalidate=86400',
+                            'ETag': `"${cacheFileName}"`,
+                            'Last-Modified': new Date().toUTCString(),
                         },
                     });
 
@@ -214,7 +218,9 @@ async function servePlaceholderImage() {
             status: 200,
             headers: {
                 'Content-Type': 'image/png',
-                'Cache-Control': 'public, max-age=3600', // Cache for an hour
+                'Cache-Control': 'public, max-age=604800, stale-while-revalidate=86400', // Cache for a week
+                'ETag': '"placeholder-image"',
+                'Last-Modified': new Date().toUTCString(),
             },
         });
     } catch (error) {
@@ -225,4 +231,4 @@ async function servePlaceholderImage() {
             { status: 404 }
         );
     }
-} 
+}

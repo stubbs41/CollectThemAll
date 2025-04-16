@@ -85,6 +85,7 @@ const CardPrintSelector: React.FC<CardPrintSelectorProps> = ({
                     onLoad={() => handleLogoLoaded(print.id)}
                     loading={print.id === selectedPrintId ? "eager" : "lazy"}
                     priority={print.id === selectedPrintId}
+                    quality={85}
                   />
                 </div>
                 <span className="whitespace-nowrap">{print.set.name}</span>

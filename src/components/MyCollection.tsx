@@ -10,6 +10,7 @@ import { useCollections } from '@/context/CollectionContext';
 import CollectionImportExport from '@/components/collection/CollectionImportExport';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { preloadImages } from '@/lib/utils';
 // -- REMOVE UNUSED CollectionType from removed share section
 // import { CollectionType } from '@/services/CollectionService'; // Ensure CollectionType is imported if used here
 
@@ -39,7 +40,7 @@ type SortOption = 'name' | 'newest' | 'oldest' | 'quantity';
 //   { value: 'unknown', label: 'Default' } // Add fallback for unknown
 // ];
 // type ExpirationValue = '1h' | '1d' | '7d' | '30d' | 'never' | 'unknown';
-// 
+//
 // // New interface for fetched share data
 // interface MyShare {
 //   share_id: string;
@@ -62,6 +63,7 @@ export default function MyCollection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<'have' | 'want'>('have');
+  const [collectionCounts, setCollectionCounts] = useState<{have: number, want: number}>({have: 0, want: 0});
 
   // New state for sorting and filtering
   const [sortBy, setSortBy] = useState<SortOption>('newest');
@@ -89,6 +91,30 @@ export default function MyCollection() {
     setActiveFilter('');
   };
 
+  // Fetch collection counts for both 'have' and 'want' types
+  const fetchCollectionCounts = useCallback(async () => {
+    if (!session) return;
+
+    try {
+      // Fetch 'have' collection count
+      const haveResponse = await fetch(`/api/collections?type=have&countOnly=true`);
+      // Fetch 'want' collection count
+      const wantResponse = await fetch(`/api/collections?type=want&countOnly=true`);
+
+      if (haveResponse.ok && wantResponse.ok) {
+        const haveData = await haveResponse.json();
+        const wantData = await wantResponse.json();
+
+        setCollectionCounts({
+          have: haveData.totalCards || 0,
+          want: wantData.totalCards || 0
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch collection counts:", err);
+    }
+  }, [session]);
+
   // Fetch collection data
   const fetchCollection = useCallback(async () => {
     if (!session) return;
@@ -111,7 +137,16 @@ export default function MyCollection() {
       } else {
         const data = await response.json();
         // console.log(`Fetched ${data.collection?.length || 0} collection items`);
-        setCollection(data.collection || []); // Ensure it's an array
+        const collectionData = data.collection || [];
+        setCollection(collectionData); // Ensure it's an array
+
+        // Preload images for better performance
+        if (collectionData.length > 0) {
+          // Extract image URLs from the collection
+          const imageUrls = collectionData.map(item => item.card_image_small);
+          // Preload the images in the background
+          preloadImages(imageUrls);
+        }
       }
     } catch (err: unknown) {
       console.error("Failed to fetch collection:", err);
@@ -129,14 +164,16 @@ export default function MyCollection() {
     if (session) {
       // console.log('Session is available, fetching collection');
       fetchCollection();
+      fetchCollectionCounts(); // Fetch counts for both collection types
     } else {
       // console.log('No session, clearing collection');
       setCollection([]);
+      setCollectionCounts({have: 0, want: 0});
       setLoading(false);
     }
     // Only include session and fetchCollection as dependencies
     // activeType dependency is handled by the explicit calls in the switchType handler
-  }, [session, fetchCollection]); 
+  }, [session, fetchCollection, fetchCollectionCounts]);
 
   // -- SWITCH TYPE HANDLER ---
   const switchType = (type: 'have' | 'want') => {
@@ -146,7 +183,7 @@ export default function MyCollection() {
       setLoading(true); // Set loading state
       // Fetching will be triggered by the change in activeType via fetchCollection call below
       // We call it explicitly here to ensure it runs immediately after state update
-      // Note: direct call after setter might not have updated state yet, 
+      // Note: direct call after setter might not have updated state yet,
       // but useEffect reacting to activeType change is more robust
       // Let's rely on the useEffect for fetching
     }
@@ -156,8 +193,9 @@ export default function MyCollection() {
   useEffect(() => {
     if (session) {
       fetchCollection();
+      fetchCollectionCounts(); // Also refresh counts when switching tabs
     }
-  }, [activeType, session, fetchCollection]);
+  }, [activeType, session, fetchCollection, fetchCollectionCounts]);
   // -- END SWITCH TYPE HANDLER --
 
   // Function to remove a card
@@ -180,6 +218,7 @@ export default function MyCollection() {
       }
       // Refresh collection after successful deletion
       fetchCollection();
+      fetchCollectionCounts(); // Update counts after removing a card
     } catch (err: unknown) {
       console.error("Failed to remove card:", err);
       // Type check for Error object
@@ -211,6 +250,13 @@ export default function MyCollection() {
       }
     });
 
+    // Update the active type count in our collectionCounts state
+    if (activeType === 'have' && collectionCounts.have !== totalCards) {
+      setCollectionCounts(prev => ({ ...prev, have: totalCards }));
+    } else if (activeType === 'want' && collectionCounts.want !== totalCards) {
+      setCollectionCounts(prev => ({ ...prev, want: totalCards }));
+    }
+
     return {
       uniqueCards,
       totalCards,
@@ -218,7 +264,7 @@ export default function MyCollection() {
       highestQuantityCard,
       highestQuantity
     };
-  }, [collection]);
+  }, [collection, activeType, collectionCounts]);
 
   // Apply sorting and filtering to the collection
   const filteredAndSortedCollection = useMemo(() => {
@@ -271,14 +317,14 @@ export default function MyCollection() {
   //     setLoadingShares(false);
   //   }
   // }, [session]);
-  // 
+  //
   // // Fetch shares when session loads or activeType changes (to potentially refresh after sharing)
   // useEffect(() => {
   //   if (session) {
   //     fetchMyShares();
   //   }
   // }, [session, fetchMyShares, activeType]); // Refetch shares if collection type changes (as share is initiated from there)
-  // 
+  //
   // // Handle revoking a share link
   // const handleRevokeShare = useCallback(async (shareId: string) => {
   //   setRevokingShareId(shareId);
@@ -291,11 +337,11 @@ export default function MyCollection() {
   //       throw new Error(errorData.error || 'Failed to revoke share');
   //     }
   //     // Update local state to reflect the change immediately
-  //     setMyShares(prevShares => prevShares.map(share => 
+  //     setMyShares(prevShares => prevShares.map(share =>
   //       share.share_id === shareId ? { ...share, status: 'revoked' } : share
   //     ));
   //     // Optionally, re-fetch shares to ensure sync, but local update is faster UX
-  //     // fetchMyShares(); 
+  //     // fetchMyShares();
   //   } catch (err) {
   //     console.error('Failed to revoke share:', err);
   //     alert(`Error revoking share: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -303,7 +349,7 @@ export default function MyCollection() {
   //     setRevokingShareId(null);
   //   }
   // }, []); // Removed fetchMyShares dependency for local update approach
-  // 
+  //
   // // Function to handle sharing the current collection view
   // const handleShareCollection = async (expiresIn: ExpirationValue) => {
   //   if (!session) {
@@ -314,7 +360,7 @@ export default function MyCollection() {
   //     alert('Cannot share an empty collection.');
   //     return;
   //   }
-  // 
+  //
   //   const sharePayload = {
   //     collection_type: activeType,
   //     group_name: 'Default', // Assuming 'Default' group for now
@@ -327,7 +373,7 @@ export default function MyCollection() {
   //     })),
   //     expires_in: expiresIn
   //   };
-  // 
+  //
   //   try {
   //     const response = await fetch('/api/collections/share', {
   //       method: 'POST',
@@ -336,13 +382,13 @@ export default function MyCollection() {
   //       },
   //       body: JSON.stringify(sharePayload),
   //     });
-  // 
+  //
   //     const result = await response.json();
-  // 
+  //
   //     if (!response.ok) {
   //       throw new Error(result.error || 'Failed to create share link.');
   //     }
-  // 
+  //
   //     alert(`Share link created successfully!\nURL: ${result.shareUrl}\nExpires: ${expiresIn === 'never' ? 'Never' : new Date(result.expiresAt).toLocaleString()}`);
   //     fetchMyShares(); // Refresh the list of shares after creating a new one
   //   } catch (error) {
@@ -359,7 +405,7 @@ export default function MyCollection() {
   if (!session) {
     // Store the current path for redirect after login
     setRedirectPath(pathname);
-    
+
     return (
       <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-md border border-gray-200">
         <h2 className="text-xl font-semibold text-center text-gray-700 mb-4">Access Your Collection</h2>
@@ -376,20 +422,20 @@ export default function MyCollection() {
         <div className="flex flex-col md:flex-row justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-700 mb-2 md:mb-0">Collection Overview</h2>
           {/* Import/Export Component */}
-          <CollectionImportExport 
-            collection={collection} 
-            collectionType={activeType} 
+          <CollectionImportExport
+            collection={collection}
+            collectionType={activeType}
             groupName={'Default'} // Assuming 'Default' for now
             availableGroups={['Default']} // Assuming 'Default' for now
-            onImportComplete={fetchCollection} 
+            onImportComplete={fetchCollection}
           />
           {/* --- REMOVE SHARE BUTTON --- */}
-          {/* <button 
-            onClick={() => handleShareCollection('7d')} // Example: Default to 7 days 
+          {/* <button
+            onClick={() => handleShareCollection('7d')} // Example: Default to 7 days
             className="mt-2 md:mt-0 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-150"
           >
             Share This Collection
-          </button> */}          
+          </button> */}
         </div>
         {/* Collection Stats */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
@@ -404,8 +450,8 @@ export default function MyCollection() {
           <div className="bg-gray-100 p-3 rounded col-span-2 md:col-span-1">
             <p className="text-sm text-gray-600">Highest Quantity</p>
             <p className="text-lg font-bold text-gray-800 truncate" title={(collectionStats.highestQuantityCard as CollectionItem | null)?.card_name || 'N/A'}>
-              {collectionStats.highestQuantity > 0 
-                ? `${collectionStats.highestQuantity}x ${(collectionStats.highestQuantityCard as CollectionItem | null)?.card_name || 'Card'}` 
+              {collectionStats.highestQuantity > 0
+                ? `${collectionStats.highestQuantity}x ${(collectionStats.highestQuantityCard as CollectionItem | null)?.card_name || 'Card'}`
                 : 'N/A'}
             </p>
           </div>
@@ -420,13 +466,13 @@ export default function MyCollection() {
             onClick={() => switchType('have')}
             className={`px-4 py-2 text-sm font-medium ${activeType === 'have' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            My Collection ({activeType === 'have' ? collectionStats.totalCards : ''})
+            I Have ({collectionCounts.have})
           </button>
           <button
             onClick={() => switchType('want')}
             className={`px-4 py-2 text-sm font-medium ${activeType === 'want' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            My Wishlist ({activeType === 'want' ? collectionStats.totalCards : ''})
+            I Want ({collectionCounts.want})
           </button>
         </div>
 
@@ -441,14 +487,14 @@ export default function MyCollection() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
             />
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition"
             >
               Search
             </button>
             {activeFilter && (
-              <button 
+              <button
                 type="button"
                 onClick={handleClearSearch}
                 className="px-4 py-2 bg-gray-500 text-white text-sm rounded-md hover:bg-gray-600 transition"
@@ -457,13 +503,13 @@ export default function MyCollection() {
               </button>
             )}
           </form>
-          
+
           {/* Sort Dropdown */}
           <div>
             <label htmlFor="sort" className="sr-only">Sort by</label>
-            <select 
-              id="sort" 
-              value={sortBy} 
+            <select
+              id="sort"
+              value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
               className="px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
             >
@@ -488,26 +534,29 @@ export default function MyCollection() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {filteredAndSortedCollection.map((item) => (
-            <div 
-              key={item.id} 
+            <div
+              key={item.id}
               className="bg-white rounded-lg shadow border border-gray-200 p-3 flex flex-col items-center text-center relative group"
             >
               <Link href={`/card/${item.card_id}`} className="block w-full mb-2">
                 <Image
                   src={item.card_image_small || '/placeholder-card.png'} // Fallback image
                   alt={item.card_name || 'Card image'}
-                  width={120} 
-                  height={168} 
+                  width={120}
+                  height={168}
                   className="mx-auto object-contain transition-transform duration-200 group-hover:scale-105"
                   priority={filteredAndSortedCollection.indexOf(item) < 12} // Prioritize loading first few images
+                  loading={filteredAndSortedCollection.indexOf(item) < 24 ? "eager" : "lazy"}
+                  sizes="(max-width: 640px) 120px, 120px"
+                  quality={85}
                 />
               </Link>
               <p className="text-xs font-semibold text-gray-800 mb-1 h-8 overflow-hidden" title={item.card_name || item.card_id}>
                 {item.card_name || item.card_id}
               </p>
               <p className="text-xs text-gray-500 mb-2">Qty: {item.quantity}</p>
-              <button 
-                onClick={() => handleRemoveCard(item.id, item.quantity)} 
+              <button
+                onClick={() => handleRemoveCard(item.id, item.quantity)}
                 className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:bg-red-700"
                 aria-label="Remove card"
               >
@@ -517,12 +566,12 @@ export default function MyCollection() {
           ))}
         </div>
       )}
-      
+
       {/* --- REMOVE SHARES SECTION --- */}
       {/* My Shares Section */}
       {/* {session && (
         <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-          <h3 
+          <h3
             className="text-lg font-semibold text-gray-700 mb-3 cursor-pointer flex justify-between items-center"
             onClick={() => setIsSharesExpanded(!isSharesExpanded)}
           >
@@ -563,7 +612,7 @@ export default function MyCollection() {
             )
           )}
         </div>
-      )} */}      
+      )} */}
     </div>
   );
 }
