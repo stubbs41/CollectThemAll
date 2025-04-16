@@ -1,6 +1,6 @@
 import { PokemonCard, CardPrices } from './types';
 // Import the Pokemon TCG SDK
-import { findCardsByQueries, Card, findCardByID } from 'pokemon-tcg-sdk-typescript/dist/sdk';
+import { findCardsByQueries, Card, findCardByID, PokemonTCG } from 'pokemon-tcg-sdk-typescript/dist/sdk';
 
 // --- Add Filter Type Definition (Keep this if used elsewhere) ---
 interface CardFilters {
@@ -11,13 +11,12 @@ interface CardFilters {
 }
 
 // Get Pokemon TCG API Key from environment variables
-const apiKey = process.env.POKEMON_TCG_API_KEY;
+const apiKey = process.env.NEXT_PUBLIC_POKEMON_TCG_API_KEY;
+
+// Configure the SDK with the API key
 if (apiKey) {
-  // Configure the SDK with the API key
-  import('pokemon-tcg-sdk-typescript').then(PokemonTCG => {
-    PokemonTCG.configure({ apiKey });
-    console.log('Pokemon TCG SDK configured with API key');
-  });
+  PokemonTCG.configure({ apiKey });
+  console.log('Pokemon TCG SDK configured with API key');
 } else {
   console.warn('Pokemon TCG API Key not found. API rate limits may apply.');
 }
