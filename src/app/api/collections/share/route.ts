@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { CollectionType } from '@/services/CollectionService';
 import { Database } from '@/lib/database.types';
-import { createRouteClient } from '@/lib/supabaseClient';
+import { createRouteClient } from '@/lib/supabaseServerClient';
 
 interface ShareItem {
   card_id: string;

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { Database } from '@/lib/database.types';
 import { findCardsByIds } from '@/lib/pokemonTcgApi';
+import { createRouteClient } from '@/lib/supabaseServerClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +11,7 @@ export async function GET(request: NextRequest) {
   const userId = url.searchParams.get('userId');
   const groupName = url.searchParams.get('groupName');
 
-  const cookieStore = cookies();
-  const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore });
+  const supabase = createRouteClient();
 
   try {
     // Check authentication

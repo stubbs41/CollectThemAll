@@ -1,7 +1,4 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { Database } from './database.types';
 
 // Singleton instance for client-side
@@ -25,21 +22,5 @@ export const createClient = () => {
   return createClientComponentClient<Database>({
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
     supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  });
-};
-
-// Server Component client
-export const createServerClient = () => {
-  const cookieStore = cookies();
-  return createServerComponentClient<Database>({
-    cookies: () => cookieStore,
-  });
-};
-
-// Route Handler client
-export const createRouteClient = () => {
-  const cookieStore = cookies();
-  return createRouteHandlerClient<Database>({
-    cookies: () => cookieStore,
   });
 };
