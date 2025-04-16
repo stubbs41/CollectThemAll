@@ -97,8 +97,8 @@ export default class CollectionService {
     }
 
     // Check authentication
-    const isAuth = await this.isAuthenticated();
-    if (!isAuth) {
+    const { data: { session } } = await this.supabase.auth.getSession();
+    if (!session || !session.user) {
       return new Map([
         ['Default', {
           have: new Map(),
@@ -108,22 +108,49 @@ export default class CollectionService {
     }
 
     try {
-      // Fetch all collections
-      const { data: allData, error: fetchError } = await this.supabase
-        .from('collections')
-        .select('*');
+      // First, fetch all collection groups to ensure we have all groups in the cache
+      const { data: groups, error: groupsError } = await this.supabase
+        .from('collection_groups')
+        .select('name')
+        .eq('user_id', session.user.id);
 
-      if (fetchError) throw fetchError;
+      if (groupsError) throw groupsError;
 
       // Reset cache
       this.cache.groups = new Map();
+
+      // Initialize cache with all groups from the database
+      if (groups && groups.length > 0) {
+        groups.forEach(group => {
+          this.cache.groups.set(group.name, {
+            have: new Map(),
+            want: new Map()
+          });
+        });
+      }
+
+      // Ensure Default group always exists
+      if (!this.cache.groups.has('Default')) {
+        this.cache.groups.set('Default', {
+          have: new Map(),
+          want: new Map()
+        });
+      }
+
+      // Fetch all collections
+      const { data: allData, error: fetchError } = await this.supabase
+        .from('collections')
+        .select('*')
+        .eq('user_id', session.user.id);
+
+      if (fetchError) throw fetchError;
 
       // Group collections by group_name
       if (allData) {
         allData.forEach(item => {
           const groupName = item.group_name || 'Default';
 
-          // Ensure group exists in cache
+          // Ensure group exists in cache (should already be there from the groups fetch)
           if (!this.cache.groups.has(groupName)) {
             this.cache.groups.set(groupName, {
               have: new Map(),
@@ -139,14 +166,6 @@ export default class CollectionService {
           } else if (item.collection_type === 'want') {
             group.want.set(item.card_id, item);
           }
-        });
-      }
-
-      // Ensure Default group always exists
-      if (!this.cache.groups.has('Default')) {
-        this.cache.groups.set('Default', {
-          have: new Map(),
-          want: new Map()
         });
       }
 
