@@ -99,7 +99,9 @@ export default function SharedCollectionPage() {
         }
         // Otherwise, loading remains true until card details are fetched
 
-        // Track view for analytics
+        // Temporarily disable analytics tracking until database is ready
+        // TODO: Re-enable once analytics tables are created
+        /*
         try {
           await fetch('/api/collections/analytics', {
             method: 'POST',
@@ -115,6 +117,7 @@ export default function SharedCollectionPage() {
           console.error('Error tracking view:', analyticsError);
           // Don't fail the main request if analytics fails
         }
+        */
 
         // Set up realtime for comments if allowed
         if (data.share.allow_comments) {
@@ -258,7 +261,9 @@ export default function SharedCollectionPage() {
       const data = await response.json();
       alert(`Successfully imported ${data.importedCount} cards to your collection!`);
 
-      // Track import event for analytics
+      // Temporarily disable analytics tracking until database is ready
+      // TODO: Re-enable once analytics tables are created
+      /*
       try {
         await fetch('/api/collections/analytics', {
           method: 'POST',
@@ -278,6 +283,7 @@ export default function SharedCollectionPage() {
         console.error('Error tracking import:', analyticsError);
         // Don't fail the main request if analytics fails
       }
+      */
 
     } catch (err) {
       console.error('Error importing collection:', err);

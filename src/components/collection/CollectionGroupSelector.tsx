@@ -58,10 +58,7 @@ const CollectionGroupSelector: React.FC<CollectionGroupSelectorProps> = ({ onCre
       <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
         <div className="flex-grow">
           <div className="flex items-center gap-2 mb-2">
-            <label htmlFor="collection-group" className="text-sm font-medium text-gray-700">
-              Collection Group:
-            </label>
-            <span className="text-base font-semibold text-blue-700">{activeGroup}</span>
+            <h3 className="text-sm font-medium text-gray-700">Collection Group</h3>
           </div>
 
           <div className="flex gap-2">
@@ -70,12 +67,19 @@ const CollectionGroupSelector: React.FC<CollectionGroupSelectorProps> = ({ onCre
               value={activeGroup}
               onChange={handleGroupChange}
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              aria-label="Select collection group"
             >
-              {groups.map(group => (
-                <option key={group} value={group}>
-                  {group}
-                </option>
-              ))}
+              {groups.map(group => {
+                // Skip duplicate 'Default' entries
+                if (group === 'Default' && groups.indexOf(group) !== groups.lastIndexOf(group)) {
+                  return null;
+                }
+                return (
+                  <option key={group} value={group}>
+                    {group}
+                  </option>
+                );
+              })}
             </select>
 
             <button
