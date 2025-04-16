@@ -800,10 +800,11 @@ export default class CollectionService {
     sharingLevel: 'group' | 'have' | 'want',
     expiresInDays: number = 7,
     options?: {
-      is_collaborative?: boolean;
-      password?: string;
-      permission_level?: 'read' | 'write';
-      allow_comments?: boolean;
+      // These options are not currently supported by the database schema
+      // is_collaborative?: boolean;
+      // password?: string;
+      // permission_level?: 'read' | 'write';
+      // allow_comments?: boolean;
     }
   ): Promise<{ success: boolean, shareId?: string, error?: string }> {
     if (!groupName.trim()) {
@@ -876,15 +877,16 @@ export default class CollectionService {
           collection_name: groupName,
           collection_type: collectionType,
           data: collectionData,
-          expires_at: expiresAt.toISOString(),
-          status: 'active',
-          view_count: 0,
-          sharing_level: sharingLevel,
-          is_collaborative: options?.is_collaborative || false,
-          password_protected: !!options?.password,
-          password_hash: options?.password ? await this.hashPassword(options.password) : null,
-          sharing_permission: options?.permission_level || 'read',
-          allow_comments: options?.allow_comments || false
+          expires_at: expiresAt.toISOString()
+          // The following fields are not in the current database schema
+          // status: 'active',
+          // view_count: 0,
+          // sharing_level: sharingLevel,
+          // is_collaborative: options?.is_collaborative || false,
+          // password_protected: !!options?.password,
+          // password_hash: options?.password ? await this.hashPassword(options.password) : null,
+          // sharing_permission: options?.permission_level || 'read',
+          // allow_comments: options?.allow_comments || false
         })
         .select()
         .single();

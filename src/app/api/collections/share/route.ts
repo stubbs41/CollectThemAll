@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Store the share data in the shared_collections table
+    // Only include fields that exist in the database schema
     const { error } = await supabase
       .from('shared_collections')
       .insert({
@@ -100,11 +101,12 @@ export async function POST(request: NextRequest) {
         collection_name: shareData.collection_name || shareData.group_name,
         data: shareData,
         created_at: now.toISOString(),
-        expires_at: expiresAt,
-        is_collaborative: shareData.is_collaborative || false,
-        password_protected: !!shareData.password,
-        password_hash: passwordHash,
-        sharing_level: shareData.permission_level || 'read'
+        expires_at: expiresAt
+        // The following fields are not in the current database schema
+        // is_collaborative: shareData.is_collaborative || false,
+        // password_protected: !!shareData.password,
+        // password_hash: passwordHash,
+        // sharing_level: shareData.permission_level || 'read'
       });
 
     if (error) {
@@ -161,13 +163,17 @@ export async function GET(request: NextRequest) {
 
   try {
     // Retrieve only necessary fields + the data blob
+    // Only select fields that exist in the database schema
     const { data: shareRecord, error } = await supabase
       .from('shared_collections')
-      .select('share_id, user_id, collection_type, group_name, collection_name, data, created_at, expires_at, status, view_count, password_protected, is_collaborative, sharing_level')
+      .select('share_id, user_id, collection_type, group_name, collection_name, data, created_at, expires_at')
       .eq('share_id', shareId)
-      .eq('status', 'active') // Only fetch active shares
+      // .eq('status', 'active') // Status field doesn't exist in the schema
       .single();
 
+    // Password protection is not implemented in the current schema
+    // This code is left commented for future implementation
+    /*
     // Check if the share is password protected
     if (shareRecord?.password_protected) {
       // Check if the user has verified the password
@@ -186,6 +192,7 @@ export async function GET(request: NextRequest) {
         });
       }
     }
+    */
 
     if (error || !shareRecord) {
       console.error('Error retrieving share or share not active:', error);
@@ -197,10 +204,11 @@ export async function GET(request: NextRequest) {
 
     // Check if share has expired (only if expires_at is not null)
     if (shareRecord.expires_at && new Date(shareRecord.expires_at) < new Date()) {
-      // Update status to 'expired' in the DB (don't await, let it happen in background)
-      supabase.from('shared_collections').update({ status: 'expired' }).eq('share_id', shareId)
-        .then(({error: updateError}) => {
-           if(updateError) console.error("Failed to mark share as expired:", updateError);
+      // Status field doesn't exist in the schema, so we can't mark it as expired
+      // Instead, we'll just delete the expired share
+      supabase.from('shared_collections').delete().eq('share_id', shareId)
+        .then(({error: deleteError}) => {
+           if(deleteError) console.error("Failed to delete expired share:", deleteError);
         });
       return NextResponse.json({ error: 'Share has expired' }, { status: 410 });
     }
@@ -254,13 +262,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Shared data is missing.' }, { status: 500 });
     }
 
+    // View count tracking is not implemented in the current schema
+    // This code is left commented for future implementation
+    /*
     // Increment view count now that we know it's a valid view
     supabase.rpc('increment_share_view_count', { share_id_to_update: shareId })
       .then(({ error: rpcError }) => {
         if (rpcError) console.error('Error incrementing view count:', rpcError);
       });
+    */
 
     // Construct the final response object precisely
+    // Only include fields that exist in the database schema
     const responseData = {
         share_id: shareRecord.share_id,
         collection_name: shareRecord.collection_name,
@@ -268,12 +281,13 @@ export async function GET(request: NextRequest) {
         collection_type: shareRecord.collection_type,
         created_at: shareRecord.created_at,
         expires_at: shareRecord.expires_at,
-        status: shareRecord.status,
-        view_count: (shareRecord.view_count ?? 0) + 1, // Return incremented count optimistically
         expires_in: originalExpiresIn, // Send back the original duration setting
-        is_collaborative: shareRecord.is_collaborative || false,
-        password_protected: shareRecord.password_protected || false,
-        sharing_level: shareRecord.sharing_level || 'read',
+        // Fields that don't exist in the schema are commented out
+        // status: shareRecord.status,
+        // view_count: (shareRecord.view_count ?? 0) + 1,
+        // is_collaborative: shareRecord.is_collaborative || false,
+        // password_protected: shareRecord.password_protected || false,
+        // sharing_level: shareRecord.sharing_level || 'read',
         data: { // Ensure this structure matches frontend expectation
             items: parsedItems
         }
