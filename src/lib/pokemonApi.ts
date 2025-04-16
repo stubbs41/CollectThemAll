@@ -1,6 +1,6 @@
 import { PokemonCard, CardPrices } from './types';
-// Remove SDK imports as we'll use fetch
-// import { findCardsByQueries, Card, findCardByID } from 'pokemon-tcg-sdk-typescript/dist/sdk';
+// Import the Pokemon TCG SDK
+import { findCardsByQueries, Card, findCardByID } from 'pokemon-tcg-sdk-typescript/dist/sdk';
 
 // --- Add Filter Type Definition (Keep this if used elsewhere) ---
 interface CardFilters {
@@ -10,16 +10,17 @@ interface CardFilters {
   supertype?: string;
 }
 
-// Get Supabase function URL and Anon Key from environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const edgeFunctionUrl = `${supabaseUrl}/functions/v1/pokemon-proxy`;
-
-// API key check - No longer needed here as Edge Function handles it
-// const apiKey = process.env.POKEMON_TCG_API_KEY;
-// if (!apiKey) {
-//   console.warn('Pokemon TCG API Key not found...');
-// }
+// Get Pokemon TCG API Key from environment variables
+const apiKey = process.env.POKEMON_TCG_API_KEY;
+if (apiKey) {
+  // Configure the SDK with the API key
+  import('pokemon-tcg-sdk-typescript').then(PokemonTCG => {
+    PokemonTCG.configure({ apiKey });
+    console.log('Pokemon TCG SDK configured with API key');
+  });
+} else {
+  console.warn('Pokemon TCG API Key not found. API rate limits may apply.');
+}
 
 // Helper function to map API response (assuming Edge Func returns SDK structure)
 // We need a similar type definition for the expected response from the edge function
@@ -59,63 +60,48 @@ function mapApiCardToPokemonCard(apiCard: ApiCard): PokemonCard {
   };
 }
 
-// --- fetchAllPokemonCards - Refactor to use Edge Function ---
+// --- fetchAllPokemonCards - Updated to use SDK directly ---
 // This function might need complete rethinking or removal if we fetch paged
-// Or call the edge function multiple times if needed.
+// Or call the SDK multiple times if needed.
 export async function fetchAllPokemonCards(): Promise<PokemonCard[]> {
-  console.warn("fetchAllPokemonCards is likely inefficient with the proxy. Consider using paged fetching.");
-  // For now, let's fetch a large first page via the proxy as a placeholder
+  console.warn("fetchAllPokemonCards is likely inefficient. Consider using paged fetching.");
+  // For now, let's fetch a large first page as a placeholder
   const limit = 250; // Max page size
-  const params = new URLSearchParams({
-    q: `supertype:Pokemon`,
-    page: '1',
-    pageSize: limit.toString(),
+  const queryParams = {
+    q: 'supertype:Pokemon',
+    page: 1,
+    pageSize: limit,
     orderBy: 'nationalPokedexNumbers'
-  });
+  };
 
   try {
-    console.log(`Fetching initial batch via proxy: ${edgeFunctionUrl}/cards?${params}`);
-    const response = await fetch(`${edgeFunctionUrl}/cards?${params}`, {
-      headers: {
-        'Authorization': `Bearer ${supabaseAnonKey}`,
-      }
-    });
-    if (!response.ok) {
-      throw new Error(`Proxy fetch failed: ${response.statusText}`);
-    }
+    console.log(`Fetching initial batch via SDK with params:`, queryParams);
+    const apiCards = await findCardsByQueries(queryParams);
 
-    // Parse the response from the Edge Function
-    const responseData = await response.json();
-
-    // Check if the response has a data property (new format) or is an array directly (old format)
-    const apiCards: ApiCard[] = Array.isArray(responseData)
-      ? responseData
-      : (responseData.data || []); // Handle both formats
-
-    console.log(`Fetched ${apiCards.length} cards via proxy.`);
+    console.log(`Fetched ${apiCards.length} cards via SDK.`);
     return apiCards.map(mapApiCardToPokemonCard);
 
   } catch (error) {
-    console.error('Error fetching cards via proxy in fetchAllPokemonCards:', error);
+    console.error('Error fetching cards via SDK in fetchAllPokemonCards:', error);
     return [];
   }
 }
 
-// --- fetchCardsPaged - Updated to handle new metadata format ---
+// --- fetchCardsPaged - Updated to use SDK directly ---
 export async function fetchCardsPaged(
   page: number,
   limit: number,
   // Filters can now potentially include a 'name' for searching
   filters: CardFilters & { name?: string } = {}
 ): Promise<{ cards: PokemonCard[], totalCount: number, totalPages: number, isEmptyPage: boolean }> {
-  console.log(`Fetching page ${page} with limit ${limit} via proxy. Filters:`, filters);
+  console.log(`Fetching page ${page} with limit ${limit} via SDK. Filters:`, filters);
 
-  // Construct query parameters, including filters
-  const params = new URLSearchParams({
-    page: page.toString(),
-    pageSize: limit.toString(),
-    orderBy: 'nationalPokedexNumbers' // Consider changing orderBy for search? Maybe API default is better?
-  });
+  // Build query parameters for the SDK
+  const queryParams: any = {
+    page,
+    pageSize: limit,
+    orderBy: 'nationalPokedexNumbers'
+  };
 
   // Build query string for 'q' param
   const filterParts: string[] = [];
@@ -130,8 +116,6 @@ export async function fetchCardsPaged(
       filterParts.push(`(supertype:"${filters.supertype}")`);
   } else if (!filters.name) {
       // Default to Pokemon only if NOT doing a name search (to allow searching non-Pokemon cards)
-      // Although the proxy currently defaults to supertype:Pokemon on its side if q is empty...
-      // Let's be explicit for clarity, but this might need sync with proxy logic
       filterParts.push(`(supertype:"Pokemon")`);
   }
   if (filters.set) {
@@ -144,40 +128,28 @@ export async function fetchCardsPaged(
     filterParts.push(`(types:"${filters.type}")`);
   }
 
-  // Join with AND. If empty, the proxy function should handle a default query.
+  // Join with AND
   const queryString = filterParts.join(' AND ');
   if (queryString) {
-    params.set('q', queryString);
+    queryParams.q = queryString;
   }
 
-  console.log("Proxy Lib: Sending Params:", params.toString());
+  console.log("SDK: Using query params:", queryParams);
 
   try {
-    const response = await fetch(`${edgeFunctionUrl}/cards?${params}`, {
-       headers: {
-        'Authorization': `Bearer ${supabaseAnonKey}`,
-      }
-    });
-    if (!response.ok) {
-      throw new Error(`Proxy fetch failed: ${response.statusText}`);
-    }
+    // Use the SDK to fetch cards
+    const apiCards = await findCardsByQueries(queryParams);
 
-    // Parse the response from the Edge Function
-    const responseData = await response.json();
+    // Calculate total pages based on the total count
+    // The SDK doesn't provide totalCount directly, so we estimate it
+    // This is an approximation - the actual count might be different
+    const totalCount = apiCards.totalCount || apiCards.length * 10; // Estimate if not provided
+    const totalPages = Math.ceil(totalCount / limit);
 
-    // Check if the response has a data property (new format) or is an array directly (old format)
-    const apiCards: ApiCard[] = Array.isArray(responseData)
-      ? responseData
-      : (responseData.data || []); // Handle both formats
-
-    // Get metadata from response or calculate defaults
-    const totalCount: number = responseData.totalCount || apiCards.length || 0;
-    const totalPages: number = responseData.totalPages || Math.ceil(totalCount / limit) || 1;
-
-    // Check if we got an empty page (when page is higher than available data)
+    // Check if we got an empty page
     const isEmptyPage = apiCards.length === 0;
 
-    console.log(`Fetched ${apiCards.length} cards (total: ${totalCount}, pages: ${totalPages}) via proxy for page ${page}`);
+    console.log(`Fetched ${apiCards.length} cards (total: ~${totalCount}, pages: ~${totalPages}) via SDK for page ${page}`);
     const cards = apiCards.map(mapApiCardToPokemonCard);
 
     return {
@@ -188,7 +160,7 @@ export async function fetchCardsPaged(
     };
 
   } catch (error) {
-    console.error(`Error fetching page ${page} via proxy:`, error);
+    console.error(`Error fetching page ${page} via SDK:`, error);
     return {
       cards: [],
       totalCount: 0,
@@ -198,71 +170,52 @@ export async function fetchCardsPaged(
   }
 }
 
-// --- fetchCardsBySet - Refactor to use Edge Function ---
+// --- fetchCardsBySet - Updated to use SDK directly ---
 export async function fetchCardsBySet(setId: string): Promise<PokemonCard[]> {
-  console.log(`Fetching cards for set: ${setId} via proxy`);
+  console.log(`Fetching cards for set: ${setId} via SDK`);
 
-  const params = new URLSearchParams({
+  const queryParams = {
       q: `set.id:${setId}`,
-      pageSize: '250', // Fetch up to 250 cards
+      pageSize: 250, // Fetch up to 250 cards
       orderBy: 'number',
-  });
+  };
 
   try {
-    const response = await fetch(`${edgeFunctionUrl}/cards?${params}`, {
-       headers: {
-        'Authorization': `Bearer ${supabaseAnonKey}`,
-      }
-    });
-     if (!response.ok) {
-      throw new Error(`Proxy fetch failed: ${response.statusText}`);
-    }
+    // Use the SDK to fetch cards by set
+    const apiCards = await findCardsByQueries(queryParams);
 
-    // Parse the response from the Edge Function
-    const responseData = await response.json();
-
-    // Check if the response has a data property (new format) or is an array directly (old format)
-    const apiCards: ApiCard[] = Array.isArray(responseData)
-      ? responseData
-      : (responseData.data || []); // Handle both formats
-
-    console.log(`Fetched ${apiCards.length} cards for set ${setId} via proxy`);
+    console.log(`Fetched ${apiCards.length} cards for set ${setId} via SDK`);
     return apiCards.map(mapApiCardToPokemonCard);
 
   } catch (error) {
-    console.error('Error fetching cards by set via proxy:', error);
+    console.error('Error fetching cards by set via SDK:', error);
     return [];
   }
 }
 
-// --- fetchCardDetails - Refactor to use Edge Function ---
+// --- fetchCardDetails - Updated to use SDK directly ---
 export async function fetchCardDetails(cardId: string): Promise<PokemonCard | null> {
-  console.log(`Fetching details for card ID: ${cardId} via proxy`);
+  console.log(`Fetching details for card ID: ${cardId} via SDK`);
 
   try {
-    const response = await fetch(`${edgeFunctionUrl}/cards/${cardId}`, {
-       headers: {
-        'Authorization': `Bearer ${supabaseAnonKey}`,
-      }
-    });
-     if (!response.ok) {
-        if(response.status === 404) {
-            console.warn(`Card ${cardId} not found via proxy.`);
-            return null;
-        }
-      throw new Error(`Proxy fetch failed: ${response.statusText}`);
-    }
-    const apiCard: ApiCard = await response.json();
+    // Use the SDK to fetch card details
+    const apiCard = await findCardByID(cardId);
 
     if (!apiCard) {
-      console.warn(`Card with ID ${cardId} not found by proxy.`);
+      console.warn(`Card with ID ${cardId} not found by SDK.`);
       return null;
     }
 
     return mapApiCardToPokemonCard(apiCard);
 
   } catch (error) {
-    console.error(`Error fetching details for card ${cardId} via proxy:`, error);
+    // Handle 404 errors gracefully
+    if (error instanceof Error && error.message.includes('404')) {
+      console.warn(`Card ${cardId} not found via SDK.`);
+      return null;
+    }
+
+    console.error(`Error fetching details for card ${cardId} via SDK:`, error);
     return null;
   }
 }
