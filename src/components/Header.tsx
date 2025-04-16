@@ -14,19 +14,19 @@ const Header: React.FC = () => {
   const toggleAuth = () => {
     setIsAuthOpen(!isAuthOpen);
   };
-  
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (isAuthOpen && 
-          authRef.current && 
-          buttonRef.current && 
-          !authRef.current.contains(event.target as Node) && 
+      if (isAuthOpen &&
+          authRef.current &&
+          buttonRef.current &&
+          !authRef.current.contains(event.target as Node) &&
           !buttonRef.current.contains(event.target as Node)) {
         setIsAuthOpen(false);
       }
     };
-    
+
     // Close dropdown when pressing Escape
     const handleEscape = (event: KeyboardEvent) => {
       if (isAuthOpen && event.key === 'Escape') {
@@ -36,7 +36,7 @@ const Header: React.FC = () => {
 
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEscape);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
@@ -58,7 +58,7 @@ const Header: React.FC = () => {
             />
             <span>MyBinder</span>
           </Link>
-          
+
           <nav className="hidden md:block ml-8">
             <ul className="flex space-x-6">
               <li>
@@ -79,30 +79,31 @@ const Header: React.FC = () => {
             </ul>
           </nav>
         </div>
-        
+
         {/* Account dropdown container - Added relative positioning */}
         <div className="relative">
           <button
             onClick={toggleAuth}
             ref={buttonRef}
-            className="px-4 py-2 rounded-full bg-blue-700 hover:bg-blue-800 transition-colors"
+            className="px-5 py-2 rounded-full bg-indigo-600 hover:bg-indigo-700 transition-colors flex items-center space-x-1 font-medium shadow-md"
           >
-            Account
+            <span>Account</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
           </button>
-          
+
           {/* Auth dropdown - Positioned relative to container */}
-          {isAuthOpen && (
-            <div 
-              ref={authRef}
-              className="absolute right-0 top-full mt-2 z-50 bg-gray-900 border border-gray-700 rounded-lg shadow-lg overflow-hidden w-72 md:w-auto"
-            >
-              <AuthForm />
-            </div>
-          )}
+          <div
+            ref={authRef}
+            className={`absolute right-0 top-full mt-2 z-50 bg-gray-900 border border-gray-700 rounded-lg shadow-xl overflow-hidden w-[calc(100vw-2rem)] sm:w-80 md:w-96 transition-all duration-200 ease-in-out transform origin-top-right ${isAuthOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
+          >
+            {isAuthOpen && <AuthForm />}
+          </div>
         </div>
       </div>
     </header>
   );
 };
 
-export default Header; 
+export default Header;
