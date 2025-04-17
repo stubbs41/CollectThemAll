@@ -16,6 +16,7 @@ import { preloadImages } from '@/lib/utils';
 import { FunnelIcon, CurrencyDollarIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { CollectionType } from '@/services/CollectionService';
 import { shouldUpdatePrices, updatePriceTimestamp, getLastUpdateTimeFormatted, getTimeUntilNextUpdate } from '@/lib/priceUtils';
+import { PokemonCard } from '@/lib/types';
 
 // Define a type for the collection items we expect from the API
 interface CollectionItem {
@@ -263,31 +264,65 @@ export default function MyCollection() {
     });
   }, [currentCollection, activeFilter, sortBy, filteredByAdvanced, advancedFilterCriteria, advancedSortBy]);
 
-  // Function to remove a card
-  const handleRemoveCard = async (cardId: string, quantity: number) => {
-    // If quantity > 1, ask if they want to remove all or just one
-    let decrementOnly = false;
-    if (quantity > 1) {
-      decrementOnly = !confirm(`This card has ${quantity} copies. Do you want to remove ALL copies? Click OK to remove all, or Cancel to remove just one copy.`);
-    } else if (!confirm(`Are you sure you want to remove this card?`)) {
-      return;
+  // Function to remove a card or decrement quantity
+  const handleRemoveCard = async (cardId: string, quantity: number, decrementOnly: boolean = true) => {
+    // If removing all and quantity > 1, confirm with user
+    if (!decrementOnly && quantity > 1) {
+      if (!confirm(`Are you sure you want to remove all ${quantity} copies of this card?`)) {
+        return;
+      }
+    } else if (!decrementOnly) {
+      // Removing the last copy
+      if (!confirm(`Are you sure you want to remove this card?`)) {
+        return;
+      }
     }
+    // No confirmation needed for simple decrement
 
     try {
-      const response = await fetch(`/api/collections?cardId=${encodeURIComponent(cardId)}&type=${activeType}&decrementOnly=${decrementOnly}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      // Use the context function to remove/decrement the card
+      const result = await removeCardFromCollection(cardId, activeType, activeGroup);
+
+      if (result.status === 'error') {
+        throw new Error(result.message || 'Failed to update card quantity');
       }
-      // Refresh collections after successful deletion
+
+      // Refresh collections after successful operation
       refreshCollections();
     } catch (err: unknown) {
-      console.error("Failed to remove card:", err);
+      console.error("Failed to update card quantity:", err);
       // Type check for Error object
-      const message = err instanceof Error ? err.message : 'Unknown error removing card';
-      alert(`Error removing card: ${message}`); // Show error to user
+      const message = err instanceof Error ? err.message : 'Unknown error updating card';
+      alert(`Error: ${message}`); // Show error to user
+    }
+  };
+
+  // Function to add a card or increment quantity
+  const handleAddCard = async (cardId: string, cardName: string, cardImageSmall: string) => {
+    try {
+      // Create a minimal card object with required fields
+      const cardData = {
+        id: cardId,
+        name: cardName,
+        images: {
+          small: cardImageSmall
+        }
+      } as PokemonCard;
+
+      // Use the context function to add/increment the card
+      const result = await addCardToCollection(cardId, cardData, activeType, activeGroup);
+
+      if (result.status === 'error') {
+        throw new Error(result.message || 'Failed to update card quantity');
+      }
+
+      // Refresh collections after successful operation
+      refreshCollections();
+    } catch (err: unknown) {
+      console.error("Failed to increment card quantity:", err);
+      // Type check for Error object
+      const message = err instanceof Error ? err.message : 'Unknown error updating card';
+      alert(`Error: ${message}`); // Show error to user
     }
   };
 
@@ -636,16 +671,39 @@ export default function MyCollection() {
               </h3>
 
               <div className="flex justify-between w-full text-xs text-gray-600 mt-1">
-                <span>Quantity: {item.quantity}</span>
                 <span className="font-medium">${(item.market_price || 0).toFixed(2)}</span>
+              </div>
+
+              {/* Quantity Controls */}
+              <div className="flex items-center justify-center mt-2 w-full">
+                <button
+                  type="button"
+                  onClick={() => handleRemoveCard(item.card_id, 1, true)}
+                  className="px-2 py-0.5 text-white bg-red-600 hover:bg-red-700 rounded-l text-sm font-bold leading-none"
+                  title="Decrease quantity"
+                  disabled={item.quantity <= 0}
+                >
+                  -
+                </button>
+                <span className="px-3 py-0.5 text-gray-700 bg-gray-100 text-sm font-semibold leading-none min-w-[30px] text-center border-t border-b border-gray-300">
+                  {item.quantity}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleAddCard(item.card_id, item.card_name || '', item.card_image_small || '')}
+                  className="px-2 py-0.5 text-white bg-green-600 hover:bg-green-700 rounded-r text-sm font-bold leading-none"
+                  title="Increase quantity"
+                >
+                  +
+                </button>
               </div>
 
               {/* Remove Button */}
               <button
                 type="button"
-                onClick={() => handleRemoveCard(item.card_id, item.quantity)}
+                onClick={() => handleRemoveCard(item.card_id, item.quantity, false)}
                 className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                title="Remove from collection"
+                title="Remove all copies from collection"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
