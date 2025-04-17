@@ -12,6 +12,13 @@ export const createClient = () => {
       clientInstance = createClientComponentClient<Database>({
         supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
         supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        // Set global headers to use application/json instead of application/vnd.pgrst.object+json
+        // This fixes 406 Not Acceptable errors when querying collections
+        global: {
+          headers: {
+            'Accept': 'application/json',
+          },
+        },
       });
     }
     return clientInstance;
@@ -22,5 +29,11 @@ export const createClient = () => {
   return createClientComponentClient<Database>({
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
     supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    // Set global headers to use application/json instead of application/vnd.pgrst.object+json
+    global: {
+      headers: {
+        'Accept': 'application/json',
+      },
+    },
   });
 };
