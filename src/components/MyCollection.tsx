@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Image from 'next/image';
 import AuthForm from '@/components/AuthForm';
 import { useAuth } from '@/context/AuthContext';
@@ -31,6 +31,28 @@ interface CollectionItem {
   market_price?: number;
 }
 
+// Define a type for pending quantity updates
+interface PendingUpdate {
+  cardId: string;
+  newQuantity: number;
+  timestamp: number;
+}
+
+// Debounce function to limit API calls
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout | null = null;
+
+  return function(...args: Parameters<T>) {
+    const later = () => {
+      timeout = null;
+      func(...args);
+    };
+
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
 // Sort options
 type SortOption = 'name' | 'newest' | 'oldest' | 'quantity' | 'price';
 
@@ -58,6 +80,13 @@ export default function MyCollection() {
   const [lastUpdateTime, setLastUpdateTime] = useState<string>('Never updated');
   const [timeUntilNextUpdate, setTimeUntilNextUpdate] = useState<string>('Update needed');
 
+  // State for optimistic UI updates
+  const [pendingUpdates, setPendingUpdates] = useState<Map<string, PendingUpdate>>(new Map());
+  const [updateErrors, setUpdateErrors] = useState<Map<string, string>>(new Map());
+  const pendingUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [lastRefreshTime, setLastRefreshTime] = useState<number>(Date.now());
+
   // State for sorting and filtering
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,13 +110,30 @@ export default function MyCollection() {
     setAdvancedFilterCriteria({});
   };
 
-  // Get the current collection based on activeGroup and activeType
+  // Get the current collection based on activeGroup and activeType with optimistic updates
   const currentCollection = useMemo(() => {
     const collection = collections.find(
       col => col.groupName === activeGroup && col.type === activeType
     );
-    return collection ? Array.from(collection.cards.values()) : [];
-  }, [collections, activeGroup, activeType]);
+
+    if (!collection) return [];
+
+    // Start with the actual collection data
+    const collectionItems = Array.from(collection.cards.values());
+
+    // Apply any pending updates optimistically
+    return collectionItems.map(item => {
+      const pendingUpdate = pendingUpdates.get(item.card_id);
+      if (pendingUpdate) {
+        // Return a new object with the updated quantity
+        return {
+          ...item,
+          quantity: pendingUpdate.newQuantity
+        };
+      }
+      return item;
+    });
+  }, [collections, activeGroup, activeType, pendingUpdates]);
 
   // Collection statistics
   const collectionStats = useMemo(() => {
@@ -266,71 +312,153 @@ export default function MyCollection() {
     });
   }, [currentCollection, activeFilter, sortBy, filteredByAdvanced, advancedFilterCriteria, advancedSortBy]);
 
+  // Schedule a refresh after all pending updates are processed
+  const scheduleRefresh = useCallback(() => {
+    // Clear any existing timeout
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+
+    // Only refresh if it's been more than 5 seconds since the last refresh
+    const timeSinceLastRefresh = Date.now() - lastRefreshTime;
+    if (timeSinceLastRefresh > 5000) {
+      refreshCollections();
+      setLastRefreshTime(Date.now());
+    } else {
+      // Schedule a refresh for later
+      refreshTimeoutRef.current = setTimeout(() => {
+        refreshCollections();
+        setLastRefreshTime(Date.now());
+        refreshTimeoutRef.current = null;
+      }, 5000 - timeSinceLastRefresh);
+    }
+  }, [refreshCollections, lastRefreshTime]);
+
+  // Process all pending updates
+  const processPendingUpdates = useCallback(async () => {
+    // Clone the current pending updates
+    const updates = new Map(pendingUpdates);
+
+    // Clear pending updates immediately to prevent duplicate processing
+    setPendingUpdates(new Map());
+
+    // Process each update
+    for (const [cardId, update] of updates.entries()) {
+      try {
+        // Find the card in the collection
+        const card = currentCollection.find(item => item.card_id === cardId);
+        if (!card) continue;
+
+        // Determine if we're adding or removing
+        if (update.newQuantity > card.quantity) {
+          // Create a minimal card object with required fields
+          const cardData = {
+            id: cardId,
+            name: card.card_name || '',
+            images: {
+              small: card.card_image_small || ''
+            }
+          } as PokemonCard;
+
+          // Add card
+          await addCardToCollection(cardId, cardData, activeType, activeGroup);
+        } else if (update.newQuantity < card.quantity) {
+          // Remove card
+          await removeCardFromCollection(cardId, activeType, activeGroup);
+
+          // If quantity is 0, remove completely
+          if (update.newQuantity === 0) {
+            // We need to call removeCardFromCollection again to remove completely
+            // This is a workaround since the context function uses decrementOnly=true by default
+            await removeCardFromCollection(cardId, activeType, activeGroup);
+          }
+        }
+
+        // Clear any errors for this card
+        setUpdateErrors(prev => {
+          const newErrors = new Map(prev);
+          newErrors.delete(cardId);
+          return newErrors;
+        });
+      } catch (err) {
+        console.error(`Failed to update card ${cardId}:`, err);
+
+        // Store the error
+        setUpdateErrors(prev => {
+          const newErrors = new Map(prev);
+          newErrors.set(cardId, err instanceof Error ? err.message : 'Unknown error');
+          return newErrors;
+        });
+      }
+    }
+
+    // Schedule a refresh after all updates are processed
+    scheduleRefresh();
+  }, [pendingUpdates, currentCollection, addCardToCollection, removeCardFromCollection, activeType, activeGroup, scheduleRefresh]);
+
+  // Debounced version of processPendingUpdates
+  const debouncedProcessUpdates = useCallback(
+    debounce(() => {
+      processPendingUpdates();
+    }, 1000),
+    [processPendingUpdates]
+  );
+
+  // Function to update card quantity with optimistic UI
+  const updateCardQuantity = useCallback((cardId: string, newQuantity: number) => {
+    // Ensure quantity is not negative
+    newQuantity = Math.max(0, newQuantity);
+
+    // Update the pending updates map
+    setPendingUpdates(prev => {
+      const newUpdates = new Map(prev);
+      newUpdates.set(cardId, {
+        cardId,
+        newQuantity,
+        timestamp: Date.now()
+      });
+      return newUpdates;
+    });
+
+    // Schedule processing of updates
+    debouncedProcessUpdates();
+  }, [debouncedProcessUpdates]);
+
   // Function to remove a card or decrement quantity
-  const handleRemoveCard = async (cardId: string, quantity: number, decrementOnly: boolean = true) => {
+  const handleRemoveCard = useCallback((cardId: string, quantity: number, decrementOnly: boolean = true) => {
+    // Find the card in the collection
+    const card = currentCollection.find(item => item.card_id === cardId);
+    if (!card) return;
+
     // If removing all and quantity > 1, confirm with user
-    if (!decrementOnly && quantity > 1) {
-      if (!confirm(`Are you sure you want to remove all ${quantity} copies of this card?`)) {
+    if (!decrementOnly && card.quantity > 1) {
+      if (!confirm(`Are you sure you want to remove all ${card.quantity} copies of this card?`)) {
         return;
       }
+      // Set quantity to 0 to remove completely
+      updateCardQuantity(cardId, 0);
     } else if (!decrementOnly) {
       // Removing the last copy
       if (!confirm(`Are you sure you want to remove this card?`)) {
         return;
       }
+      // Set quantity to 0 to remove completely
+      updateCardQuantity(cardId, 0);
+    } else {
+      // Simple decrement - no confirmation needed
+      updateCardQuantity(cardId, Math.max(0, card.quantity - 1));
     }
-    // No confirmation needed for simple decrement
-
-    try {
-      // Use the context function to remove/decrement the card
-      // Pass decrementOnly parameter to control whether to decrement or remove completely
-      const result = await removeCardFromCollection(cardId, activeType, activeGroup);
-
-      // Note: The removeCardFromCollection function in the context already uses decrementOnly=true by default
-      // If we need to force complete removal (decrementOnly=false), we would need to modify the context function
-
-      if (result.status === 'error') {
-        throw new Error(result.message || 'Failed to update card quantity');
-      }
-
-      // Refresh collections after successful operation
-      refreshCollections();
-    } catch (err: unknown) {
-      console.error("Failed to update card quantity:", err);
-      // Type check for Error object
-      const message = err instanceof Error ? err.message : 'Unknown error updating card';
-      alert(`Error: ${message}`); // Show error to user
-    }
-  };
+  }, [currentCollection, updateCardQuantity]);
 
   // Function to add a card or increment quantity
-  const handleAddCard = async (cardId: string, cardName: string, cardImageSmall: string) => {
-    try {
-      // Create a minimal card object with required fields
-      const cardData = {
-        id: cardId,
-        name: cardName,
-        images: {
-          small: cardImageSmall
-        }
-      } as PokemonCard;
+  const handleAddCard = useCallback((cardId: string) => {
+    // Find the card in the collection
+    const card = currentCollection.find(item => item.card_id === cardId);
+    if (!card) return;
 
-      // Use the context function to add/increment the card
-      const result = await addCardToCollection(cardId, cardData, activeType, activeGroup);
-
-      if (result.status === 'error') {
-        throw new Error(result.message || 'Failed to update card quantity');
-      }
-
-      // Refresh collections after successful operation
-      refreshCollections();
-    } catch (err: unknown) {
-      console.error("Failed to increment card quantity:", err);
-      // Type check for Error object
-      const message = err instanceof Error ? err.message : 'Unknown error updating card';
-      alert(`Error: ${message}`); // Show error to user
-    }
-  };
+    // Increment quantity
+    updateCardQuantity(cardId, card.quantity + 1);
+  }, [currentCollection, updateCardQuantity]);
 
   // Handle opening the create group modal
   const handleOpenCreateGroupModal = () => {
@@ -691,18 +819,27 @@ export default function MyCollection() {
                 >
                   -
                 </button>
-                <span className="px-3 py-0.5 text-gray-700 bg-gray-100 text-sm font-semibold leading-none min-w-[30px] text-center border-t border-b border-gray-300">
+                <span
+                  className={`px-3 py-0.5 text-sm font-semibold leading-none min-w-[30px] text-center border-t border-b border-gray-300 ${pendingUpdates.has(item.card_id) ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-700'}`}
+                >
                   {item.quantity}
                 </span>
                 <button
                   type="button"
-                  onClick={() => handleAddCard(item.card_id, item.card_name || '', item.card_image_small || '')}
+                  onClick={() => handleAddCard(item.card_id)}
                   className="px-2 py-0.5 text-white bg-green-600 hover:bg-green-700 rounded-r text-sm font-bold leading-none"
                   title="Increase quantity"
                 >
                   +
                 </button>
               </div>
+
+              {/* Error message */}
+              {updateErrors.has(item.card_id) && (
+                <div className="text-xs text-red-600 mt-1 text-center">
+                  Error: {updateErrors.get(item.card_id)}
+                </div>
+              )}
 
               {/* Remove Button */}
               <button
@@ -737,6 +874,25 @@ export default function MyCollection() {
           }}
         />
       )}
+
+      {/* Clean up timeouts and process any pending updates on unmount */}
+      {useEffect(() => {
+        return () => {
+          // Process any pending updates before unmounting
+          if (pendingUpdates.size > 0) {
+            processPendingUpdates();
+          }
+
+          // Clear any timeouts
+          if (pendingUpdateTimeoutRef.current) {
+            clearTimeout(pendingUpdateTimeoutRef.current);
+          }
+
+          if (refreshTimeoutRef.current) {
+            clearTimeout(refreshTimeoutRef.current);
+          }
+        };
+      }, [pendingUpdates, processPendingUpdates])}
     </div>
   );
 }
