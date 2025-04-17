@@ -60,10 +60,10 @@ const CardBinder: React.FC<CardBinderProps> = ({
   const leftPageCards = currentSpreadCards.slice(0, 16);
   const rightPageCards = currentSpreadCards.slice(16, 16 + 16);
 
-  // Simpler helper function to generate pagination numbers
+  // Enhanced pagination function to show more pages and handle large page counts
   const getPaginationItems = (currentPage: number, totalPages: number) => {
     const items: (number | string)[] = [];
-    const delta = 1; // How many pages to show around the current page
+    const delta = 2; // Increased: show more pages around the current page
 
     // Always add the first page
     items.push(1);

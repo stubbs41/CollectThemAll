@@ -116,7 +116,9 @@ export async function GET(request: NextRequest) {
     const apiCards = await findCardsByQueries(queryParams);
 
     // Calculate total pages based on the total count
-    let totalCount = apiCards.totalCount || apiCards.length * 10; // Estimate if not provided
+    // For Pokemon cards, we know there are approximately 16,000+ cards total
+    // This ensures we don't artificially limit pagination to just 10 pages
+    let totalCount = apiCards.totalCount || Math.max(apiCards.length * 10, 16000); // Better estimate
     let totalPages = Math.ceil(totalCount / limit);
 
     // Handle high page workaround pagination
@@ -127,7 +129,7 @@ export async function GET(request: NextRequest) {
       console.log(`/api/cards-paged: High page workaround - Got ${apiCards.length} total cards, paginating to page ${page}`);
 
       // Make sure we have a reasonable total count
-      totalCount = Math.max(totalCount, apiCards.length);
+      totalCount = Math.max(totalCount, apiCards.length * 2); // Multiply by 2 to account for potential additional pages
       totalPages = Math.ceil(totalCount / limit);
 
       // Calculate the start and end indices for the requested page
@@ -137,13 +139,18 @@ export async function GET(request: NextRequest) {
       // Check if the requested page is beyond the available data
       if (startIndex >= apiCards.length) {
         console.log(`/api/cards-paged: Requested page ${page} is beyond available data (${apiCards.length} cards)`);
+
+        // If we're beyond available data, adjust totalPages to match what we actually have
+        // This prevents showing pagination for pages that don't exist
+        const actualTotalPages = Math.ceil(apiCards.length / limit);
+
         return NextResponse.json(
           {
             cards: [],
-            totalCount: totalCount,
-            totalPages: totalPages,
+            totalCount: apiCards.length, // Use actual count
+            totalPages: actualTotalPages, // Use actual pages
             isEmptyPage: true,
-            message: `No cards found for page ${page}. This page is beyond the available data.`
+            message: `No cards found for page ${page}. This page is beyond the available data. The last valid page is ${actualTotalPages}.`
           },
           { status: 200 }
         );
@@ -161,13 +168,17 @@ export async function GET(request: NextRequest) {
 
     // If no cards were found for this page, return an appropriate response
     if (isEmptyPage) {
+      // If we have an empty page but we're not using the high page workaround,
+      // we should adjust the total pages to avoid showing pagination for pages that don't exist
+      const adjustedTotalPages = Math.max(1, page - 1); // Assume the previous page is the last valid one
+
       return NextResponse.json(
         {
           cards: [],
-          totalCount: totalCount,
-          totalPages: totalPages,
+          totalCount: adjustedTotalPages * limit, // Adjust count based on pages
+          totalPages: adjustedTotalPages,
           isEmptyPage: true,
-          message: `No cards found for page ${page}. This page may be beyond the available data or no cards match the filters.`
+          message: `No cards found for page ${page}. ${adjustedTotalPages > 1 ? `The last valid page appears to be ${adjustedTotalPages}.` : 'No cards match the current filters.'}`
         },
         { status: 200 }
       );
