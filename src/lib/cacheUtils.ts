@@ -15,6 +15,7 @@ export const CACHE_KEYS = {
   CARD_DETAILS: 'card_details',
   SEARCH_RESULTS: 'search_results',
   MARKET_PRICES: 'market_prices',
+  CARD_PRICING: 'card_pricing',
   COLLECTION_GROUPS: 'collection_groups',
 };
 
@@ -23,20 +24,20 @@ export const CACHE_KEYS = {
  */
 export function getWithExpiry<T>(key: string): T | null {
   if (typeof window === 'undefined') return null;
-  
+
   const itemStr = localStorage.getItem(key);
   if (!itemStr) return null;
-  
+
   try {
     const item = JSON.parse(itemStr);
     const now = new Date().getTime();
-    
+
     // Check if the item is expired
     if (item.expiry && now > item.expiry) {
       localStorage.removeItem(key);
       return null;
     }
-    
+
     return item.value as T;
   } catch (error) {
     console.error('Error parsing cached item:', error);
@@ -50,13 +51,13 @@ export function getWithExpiry<T>(key: string): T | null {
  */
 export function setWithExpiry<T>(key: string, value: T, ttl: number): void {
   if (typeof window === 'undefined') return;
-  
+
   const now = new Date().getTime();
   const item = {
     value,
     expiry: now + ttl,
   };
-  
+
   try {
     localStorage.setItem(key, JSON.stringify(item));
   } catch (error) {
@@ -78,7 +79,7 @@ export function setWithExpiry<T>(key: string, value: T, ttl: number): void {
  */
 export function clearCache(): void {
   if (typeof window === 'undefined') return;
-  
+
   Object.values(CACHE_KEYS).forEach(key => {
     // Clear all items with this prefix
     Object.keys(localStorage)
@@ -92,9 +93,9 @@ export function clearCache(): void {
  */
 function clearOldestCacheItems(): void {
   if (typeof window === 'undefined') return;
-  
+
   const cacheItems: { key: string; expiry: number }[] = [];
-  
+
   // Collect all cache items with their expiry
   Object.keys(localStorage).forEach(key => {
     try {
@@ -109,10 +110,10 @@ function clearOldestCacheItems(): void {
       // If we can't parse it, it's not our cache item
     }
   });
-  
+
   // Sort by expiry (oldest first)
   cacheItems.sort((a, b) => a.expiry - b.expiry);
-  
+
   // Remove the oldest 20% of items
   const itemsToRemove = Math.max(1, Math.floor(cacheItems.length * 0.2));
   cacheItems.slice(0, itemsToRemove).forEach(item => {
@@ -129,7 +130,7 @@ export function createCacheKey(baseKey: string, params: Record<string, any>): st
     .map(([key, value]) => `${key}=${typeof value === 'object' ? JSON.stringify(value) : value}`)
     .sort()
     .join('&');
-  
+
   return `${baseKey}${paramString ? `:${paramString}` : ''}`;
 }
 
@@ -142,19 +143,19 @@ export function memoizeWithTTL<T extends (...args: any[]) => Promise<any>>(
   keyPrefix: string
 ): T {
   const cache = new Map<string, { value: any; expiry: number }>();
-  
+
   return (async (...args: Parameters<T>): Promise<ReturnType<T>> => {
     const key = `${keyPrefix}:${JSON.stringify(args)}`;
     const now = Date.now();
-    
+
     const cached = cache.get(key);
     if (cached && now < cached.expiry) {
       return cached.value;
     }
-    
+
     const result = await fn(...args);
     cache.set(key, { value: result, expiry: now + ttl });
-    
+
     // Clean up expired items occasionally
     if (Math.random() < 0.1) {
       for (const [k, v] of cache.entries()) {
@@ -163,7 +164,7 @@ export function memoizeWithTTL<T extends (...args: any[]) => Promise<any>>(
         }
       }
     }
-    
+
     return result;
   }) as T;
 }
