@@ -32,7 +32,11 @@ const LOCAL_STORAGE_KEYS = {
 const UPDATE_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 /**
- * Fetches the sets data from local data or GitHub
+ * Retrieves Pokemon TCG sets data, attempting to load from local files first and falling back to GitHub if necessary.
+ *
+ * @returns An array of sets data objects.
+ *
+ * @throws {Error} If both local and GitHub data fetches fail.
  */
 export async function fetchSetsData(): Promise<any[]> {
   try {
@@ -72,7 +76,12 @@ export async function fetchSetsData(): Promise<any[]> {
 }
 
 /**
- * Fetches cards data for a specific set from local data or GitHub
+ * Retrieves card data for a specific set, attempting to load from local files first and falling back to GitHub if necessary.
+ *
+ * @param setId - The identifier of the card set to fetch.
+ * @returns An array of card objects for the specified set.
+ *
+ * @throws {Error} If card data cannot be fetched from either local files or GitHub.
  */
 export async function fetchCardsForSet(setId: string): Promise<any[]> {
   try {
@@ -270,7 +279,13 @@ export async function getCardById(cardId: string): Promise<any | null> {
 }
 
 /**
- * Searches for cards by name
+ * Searches all Pokemon TCG sets for cards whose names include the specified substring, case-insensitive.
+ *
+ * @param name - The substring to search for within card names.
+ * @returns An array of cards whose names contain the given substring.
+ *
+ * @throws {Error} If retrieving the list of sets fails.
+ * @remark If an error occurs while searching a particular set, the function logs a warning and continues searching other sets.
  */
 export async function searchCardsByName(name: string): Promise<any[]> {
   try {
@@ -305,7 +320,9 @@ export async function searchCardsByName(name: string): Promise<any[]> {
 }
 
 /**
- * Returns whether we're using local data or GitHub
+ * Indicates whether the current data source is local files or GitHub.
+ *
+ * @returns True if data is being loaded from local files; false if from GitHub.
  */
 export function isUsingLocalData(): boolean {
   return usingLocalData;

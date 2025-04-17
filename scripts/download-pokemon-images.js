@@ -21,7 +21,11 @@ const RECENT_SETS_COUNT = 5;
 // Set to -1 for all cards
 const MAX_CARDS_PER_SET = 20; // Only download the first 20 cards of each set
 
-// Create directories if they don't exist
+/**
+ * Ensures that the specified directory exists, creating it and any necessary parent directories if missing.
+ *
+ * @param {string} dir - The path of the directory to check or create.
+ */
 function ensureDirectoryExists(dir) {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -29,7 +33,17 @@ function ensureDirectoryExists(dir) {
   }
 }
 
-// Download an image from a URL
+/**
+ * Downloads an image from a URL and saves it to the specified local path.
+ *
+ * Skips downloading if the file already exists at {@link outputPath}.
+ *
+ * @param {string} url - The URL of the image to download.
+ * @param {string} outputPath - The local file path where the image will be saved.
+ * @returns {Promise<void>} Resolves when the image is successfully downloaded or already exists.
+ *
+ * @throws {Error} If the HTTP response status is not 200 or if a network or file error occurs during download.
+ */
 async function downloadImage(url, outputPath) {
   return new Promise((resolve, reject) => {
     // Skip if the file already exists
@@ -63,7 +77,13 @@ async function downloadImage(url, outputPath) {
   });
 }
 
-// Main function
+/**
+ * Downloads and caches images for cards from the most recent Pokémon TCG sets.
+ *
+ * Reads set and card data from local JSON files, selects the latest sets, and downloads card images in batches to a local directory. Skips images that already exist and logs progress throughout the process. After completion, writes a metadata file summarizing the download.
+ *
+ * @remark Exits the process with an error if required data files are missing or if an unexpected error occurs.
+ */
 async function main() {
   console.log('Starting Pokemon TCG image download...');
 

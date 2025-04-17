@@ -24,6 +24,13 @@ export const metadata: Metadata = {
   description: "Track your Pokémon card collection.",
 };
 
+/**
+ * Defines the root layout for the PokémonCard Locator app, setting up global providers, fonts, and UI structure.
+ *
+ * Wraps the application with authentication and collection context providers, applies global styles and fonts, and renders persistent UI components such as the header, API key verifier, data source status indicator, and mobile navigation.
+ *
+ * @param children - The page content to be rendered within the main layout.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
