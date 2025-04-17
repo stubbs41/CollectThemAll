@@ -43,7 +43,9 @@ export default function MyCollection() {
     activeGroup,
     setActiveGroup,
     isLoading: collectionsLoading,
-    refreshCollections
+    refreshCollections,
+    addCardToCollection,
+    removeCardFromCollection
   } = useCollections();
 
   const pathname = usePathname();
@@ -281,7 +283,11 @@ export default function MyCollection() {
 
     try {
       // Use the context function to remove/decrement the card
+      // Pass decrementOnly parameter to control whether to decrement or remove completely
       const result = await removeCardFromCollection(cardId, activeType, activeGroup);
+
+      // Note: The removeCardFromCollection function in the context already uses decrementOnly=true by default
+      // If we need to force complete removal (decrementOnly=false), we would need to modify the context function
 
       if (result.status === 'error') {
         throw new Error(result.message || 'Failed to update card quantity');
