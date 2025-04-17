@@ -378,7 +378,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search for Pokémon cards by name..."
-                  className="w-full p-3 pr-10 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full p-3 pr-10 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-800 placeholder-gray-500"
                 />
                 {searchQuery && (
                   <button

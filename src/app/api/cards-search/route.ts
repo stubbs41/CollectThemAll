@@ -81,9 +81,34 @@ export async function GET(request: NextRequest) {
       // Apply pagination manually
       const startIndex = (page - 1) * limit;
       const endIndex = startIndex + limit;
-      cards = cards.slice(startIndex, endIndex);
 
-      console.log(`API Search Route: Direct search found ${totalCount} total cards, returning ${cards.length} for page ${page}`);
+      // Check if the requested page is beyond available data
+      if (startIndex >= cards.length) {
+        // If we're beyond available data, adjust totalPages to match what we actually have
+        const actualTotalPages = Math.ceil(cards.length / limit);
+
+        console.log(`API Search Route: Requested page ${page} is beyond available data (${cards.length} cards). Last valid page is ${actualTotalPages}.`);
+
+        return NextResponse.json({
+          cards: [],
+          totalCount: cards.length,
+          totalPages: actualTotalPages,
+          query,
+          directSearch: isSpecificPokemonSearch,
+          isEmptyPage: true,
+          message: `No cards found for "${query}" on page ${page}. The last valid page is ${actualTotalPages}.`
+        }, {
+          status: 200,
+          headers: {
+            'Cache-Control': 'no-store, max-age=0',
+          },
+        });
+      }
+
+      cards = cards.slice(startIndex, endIndex);
+      const totalPages = Math.ceil(totalCount / limit);
+
+      console.log(`API Search Route: Direct search found ${totalCount} total cards, returning ${cards.length} for page ${page} of ${totalPages}`);
     } else {
       // For more complex searches, use the existing approach
       console.log(`API Search Route: Using standard search for "${query}"`);
@@ -109,11 +134,16 @@ export async function GET(request: NextRequest) {
       ? 'no-store, max-age=0'
       : 'public, s-maxage=3600, stale-while-revalidate=86400';
 
+    // Calculate total pages for both search methods
+    const totalPages = Math.ceil(totalCount / limit);
+
     return NextResponse.json({
       cards,
       totalCount,
+      totalPages,
       query,
-      directSearch: isSpecificPokemonSearch // Include this flag in the response
+      directSearch: isSpecificPokemonSearch, // Include this flag in the response
+      isEmptyPage: cards.length === 0
     }, {
       status: 200,
       headers: {
