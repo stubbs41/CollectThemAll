@@ -4,10 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev -H 0.0.0.0",
-    "build": "next build",
+    "download-data": "node scripts/download-pokemon-data.js",
+    "download-images": "node scripts/download-pokemon-images.js",
+    "download-all": "npm run download-data && npm run download-images",
+    "build": "npm run download-data && next build",
     "start": "next start",
     "lint": "next lint",
-    "export": "next build",
+    "export": "npm run download-all && next build",
     "update-github-data": "ts-node --project tsconfig.json src/scripts/updateGithubData.ts"
   },
   "dependencies": {

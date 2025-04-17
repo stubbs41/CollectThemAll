@@ -5,6 +5,7 @@ import "@/styles/mobile-optimizations.css";
 import Header from "@/components/Header";
 import MobileNavigation from "@/components/MobileNavigation";
 import ApiKeyVerifier from "@/components/ApiKeyVerifier";
+import DataSourceStatus from "@/components/DataSourceStatus";
 import { CollectionProvider } from "@/context/CollectionContext";
 import { AuthProvider } from "@/context/AuthContext";
 
@@ -37,6 +38,8 @@ export default function RootLayout({
           <CollectionProvider>
             {/* API Key Verifier runs at startup to check API keys */}
             <ApiKeyVerifier />
+            {/* Data Source Status shows whether we're using local data or GitHub */}
+            <DataSourceStatus />
             <Header />
             <main className="flex-grow container mx-auto px-4 py-6 page-container">
               {children}

@@ -13,6 +13,9 @@ const LOCAL_DATA_BASE_URL = '/data';
 const SETS_URL = `${LOCAL_DATA_BASE_URL}/sets/sets.json`;
 const CARDS_BASE_URL = `${LOCAL_DATA_BASE_URL}/cards`;
 
+// Flag to track if we're using local data or GitHub
+export let usingLocalData = false;
+
 // GitHub repository raw content URLs (fallback)
 const GITHUB_RAW_BASE_URL = 'https://raw.githubusercontent.com/PokemonTCG/pokemon-tcg-data/master';
 const GITHUB_SETS_URL = `${GITHUB_RAW_BASE_URL}/sets/en.json`;
@@ -41,12 +44,15 @@ export async function fetchSetsData(): Promise<any[]> {
       if (response.ok) {
         const data = await response.json();
         console.log(`Loaded ${data.length} sets from local data`);
+        usingLocalData = true;
         return data;
       }
     } catch (localError) {
       console.warn('Error fetching sets data from local data:', localError);
       // Continue to GitHub fallback
     }
+
+    usingLocalData = false;
 
     // Fallback to GitHub
     console.log('Fetching sets data from GitHub...');
@@ -78,12 +84,15 @@ export async function fetchCardsForSet(setId: string): Promise<any[]> {
       if (response.ok) {
         const data = await response.json();
         console.log(`Loaded ${data.length} cards for set ${setId} from local data`);
+        usingLocalData = true;
         return data;
       }
     } catch (localError) {
       console.warn(`Error fetching cards for set ${setId} from local data:`, localError);
       // Continue to GitHub fallback
     }
+
+    usingLocalData = false;
 
     // Fallback to GitHub
     console.log(`Fetching cards data for set ${setId} from GitHub...`);
@@ -293,6 +302,13 @@ export async function searchCardsByName(name: string): Promise<any[]> {
     console.error(`Error searching cards by name ${name}:`, error);
     throw error;
   }
+}
+
+/**
+ * Returns whether we're using local data or GitHub
+ */
+export function isUsingLocalData(): boolean {
+  return usingLocalData;
 }
 
 /**
