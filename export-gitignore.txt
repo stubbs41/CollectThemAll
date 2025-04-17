@@ -1,0 +1,26 @@
+# Ignore everything
+*
+
+# But not these files...
+!.gitignore
+!package.json
+!package-lock.json
+!next.config.js
+!tsconfig.json
+!.eslintrc.json
+!README.md
+
+# And not these directories...
+!src/
+!src/**
+!public/
+!public/**
+!supabase/
+!supabase/**
+
+# Still ignore node_modules and .next even if they're in the directories above
+node_modules/
+.next/
+.vercel/
+.env
+.env.local
