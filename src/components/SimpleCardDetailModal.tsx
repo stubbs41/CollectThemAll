@@ -36,7 +36,7 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
 
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Load card data when cardId changes
+  // Initialize selectedPrintId when cardId changes
   useEffect(() => {
     if (!cardId) {
       setCard(null);
@@ -45,10 +45,13 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
       return;
     }
 
-    // Only initialize with cardId when first opening the modal
-    if (!selectedPrintId) {
-      setSelectedPrintId(cardId);
-    }
+    // Initialize with cardId when first opening the modal
+    setSelectedPrintId(cardId);
+  }, [cardId]);
+
+  // Load card data when selectedPrintId changes
+  useEffect(() => {
+    if (!selectedPrintId) return;
 
     let isMounted = true;
     const loadCardData = async () => {
@@ -58,13 +61,12 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
       setPrints([]);
 
       try {
-        // Fetch card details for the currently selected print (or initial card)
-        const currentId = selectedPrintId || cardId;
-        console.log(`Loading card data for ID: ${currentId}`);
-        const fetchedInitialDetails = await fetchCardDetails(currentId);
+        // Fetch card details for the currently selected print
+        console.log(`Loading card data for ID: ${selectedPrintId}`);
+        const fetchedInitialDetails = await fetchCardDetails(selectedPrintId);
 
         if (!fetchedInitialDetails) {
-          throw new Error(`Card details not found for ID: ${currentId}`);
+          throw new Error(`Card details not found for ID: ${selectedPrintId}`);
         }
 
         if (!isMounted) return;
@@ -128,7 +130,7 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
 
     loadCardData();
     return () => { isMounted = false; };
-  }, [cardId, selectedPrintId]);
+  }, [selectedPrintId]);
 
   // Safely find the selected print or fall back to the main card
   const displayedCard = prints.find(p => p && p.id === selectedPrintId) || card;
