@@ -8,6 +8,7 @@ import { getProxiedImageUrl } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { useCollections } from '@/context/CollectionContext';
 import CollectionSelector from './card/CollectionSelector';
+import CardPricing from './card/CardPricing';
 
 interface SimpleCardDetailModalProps {
   cardId: string | null;
@@ -61,9 +62,9 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
       setPrints([]);
 
       try {
-        // Fetch card details for the currently selected print
+        // Fetch card details for the currently selected print with fresh pricing
         console.log(`Loading card data for ID: ${selectedPrintId}`);
-        const fetchedInitialDetails = await fetchCardDetails(selectedPrintId);
+        const fetchedInitialDetails = await fetchCardDetails(selectedPrintId, true);
 
         if (!fetchedInitialDetails) {
           throw new Error(`Card details not found for ID: ${selectedPrintId}`);
@@ -150,6 +151,7 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
     >
       <div className="bg-white rounded-lg shadow-xl px-8 py-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto relative text-gray-900" ref={modalRef}>
         <button
+          type="button"
           onClick={onClose}
           className="absolute top-4 right-5 text-gray-400 hover:text-gray-600 text-3xl font-light"
           aria-label="Close modal"
@@ -200,19 +202,7 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
 
               {/* Pricing section */}
               <div className="border-t border-gray-200 pt-4">
-                <h3 className="text-lg font-semibold">Pricing</h3>
-                {displayedCard.tcgplayer?.prices ? (
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    {Object.entries(displayedCard.tcgplayer.prices).map(([key, value]) => (
-                      <div key={key} className="bg-gray-100 p-2 rounded">
-                        <p className="text-sm font-medium">{key}</p>
-                        <p className="text-lg font-bold">${value?.market || value?.mid || 'N/A'}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 mt-2">No pricing information available</p>
-                )}
+                <CardPricing prices={displayedCard.tcgplayer?.prices} />
               </div>
 
               {/* Print selector */}
@@ -222,6 +212,7 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
                   {prints.length > 0 ? (
                     prints.map(print => (
                       <button
+                        type="button"
                         key={print.id}
                         onClick={() => {
                           console.log(`Selecting print: ${print.id}`);
@@ -246,6 +237,7 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
                   <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
                     <p className="text-amber-700 text-sm">Please sign in to add cards to your collection or wishlist.</p>
                     <button
+                      type="button"
                       onClick={onClose}
                       className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm"
                     >
@@ -265,6 +257,7 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
 
                     <div className="flex gap-2">
                       <button
+                        type="button"
                         className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
                         disabled={addingToHave || addingToWant}
                         onClick={async () => {
@@ -299,6 +292,7 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
                         {addingToHave ? 'Adding...' : 'Add to Collection'}
                       </button>
                       <button
+                        type="button"
                         className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
                         disabled={addingToHave || addingToWant}
                         onClick={async () => {

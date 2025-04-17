@@ -18,6 +18,7 @@ import { FunnelIcon, CurrencyDollarIcon, ClockIcon } from '@heroicons/react/24/o
 import { CollectionType } from '@/services/CollectionService';
 import { shouldUpdatePrices, updatePriceTimestamp, getLastUpdateTimeFormatted, getTimeUntilNextUpdate } from '@/lib/priceUtils';
 import { PokemonCard } from '@/lib/types';
+import SimpleCardDetailModal from '@/components/SimpleCardDetailModal';
 
 // Define a type for the collection items we expect from the API
 interface CollectionItem {
@@ -48,6 +49,9 @@ export default function MyCollection() {
     addCardToCollection,
     removeCardFromCollection
   } = useCollections();
+
+  // State for card detail modal
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
   const pathname = usePathname();
   const [activeType, setActiveType] = useState<CollectionType>('have');
@@ -613,7 +617,10 @@ export default function MyCollection() {
               className="bg-white rounded-lg shadow border border-gray-200 p-3 flex flex-col items-center text-center relative group"
             >
               {/* Card Image */}
-              <Link href={`/cards/${item.card_id}`} prefetch={false} className="block w-full">
+              <div
+                className="block w-full cursor-pointer"
+                onClick={() => setSelectedCardId(item.card_id)}
+              >
                 <div className="relative w-full aspect-[2.5/3.5] mb-2">
                   {item.card_image_small ? (
                     <Image
@@ -630,7 +637,7 @@ export default function MyCollection() {
                     </div>
                   )}
                 </div>
-              </Link>
+              </div>
 
               {/* Card Details */}
               <h3 className="text-sm font-medium text-gray-800 mb-1 line-clamp-1" title={item.card_name || item.card_id}>
@@ -676,7 +683,11 @@ export default function MyCollection() {
         />
       )}
 
-      {/* No cleanup needed for the new implementation */}
+      {/* Card Detail Modal */}
+      <SimpleCardDetailModal
+        cardId={selectedCardId}
+        onClose={() => setSelectedCardId(null)}
+      />
     </div>
   );
 }

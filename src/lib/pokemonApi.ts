@@ -367,8 +367,8 @@ export async function fetchCardsBySet(setId: string): Promise<PokemonCard[]> {
 }
 
 // --- fetchCardDetails - Updated to use local data first, then server-side API route ---
-export async function fetchCardDetails(cardId: string): Promise<PokemonCard | null> {
-  console.log(`Fetching details for card ID: ${cardId}`);
+export async function fetchCardDetails(cardId: string, forceRefreshPricing: boolean = false): Promise<PokemonCard | null> {
+  console.log(`Fetching details for card ID: ${cardId}${forceRefreshPricing ? ' with forced price refresh' : ''}`);
 
   try {
     // Try to get from local GitHub data first
@@ -389,23 +389,22 @@ export async function fetchCardDetails(cardId: string): Promise<PokemonCard | nu
         // Map to our PokemonCard type
         const pokemonCard = GithubData.mapGithubCardToPokemonCard(githubCard, setData);
 
-        // If we need pricing data, fetch it from the API
-        if (!pokemonCard.tcgplayer) {
-          try {
-            // Fetch just the pricing data
-            const pricingResponse = await fetch(`${apiBaseUrl}/card-pricing?cardId=${encodeURIComponent(cardId)}`);
+        // Always fetch pricing data to ensure it's up to date
+        try {
+          // Fetch the pricing data with refresh parameter if needed
+          const refreshParam = forceRefreshPricing ? '&refresh=true' : '';
+          const pricingResponse = await fetch(`${apiBaseUrl}/card-pricing?cardId=${encodeURIComponent(cardId)}${refreshParam}`);
 
-            if (pricingResponse.ok) {
-              const pricingData = await pricingResponse.json();
+          if (pricingResponse.ok) {
+            const pricingData = await pricingResponse.json();
 
-              if (pricingData.tcgplayer) {
-                pokemonCard.tcgplayer = pricingData.tcgplayer;
-              }
+            if (pricingData.tcgplayer) {
+              pokemonCard.tcgplayer = pricingData.tcgplayer;
             }
-          } catch (pricingError) {
-            console.warn(`Could not fetch pricing data for ${cardId}:`, pricingError);
-            // Continue without pricing data
           }
+        } catch (pricingError) {
+          console.warn(`Could not fetch pricing data for ${cardId}:`, pricingError);
+          // Continue with existing pricing data or without pricing data
         }
 
         return pokemonCard;

@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CardPrices, PriceData } from '@/lib/types';
 import { formatPrice } from '@/lib/utils';
-import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
+import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, CurrencyDollarIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 
 interface CardPricingProps {
   prices: CardPrices | undefined | null;
@@ -31,6 +31,7 @@ const getPriceFinishType = (prices: CardPrices | undefined | null): string => {
 };
 
 const CardPricing: React.FC<CardPricingProps> = ({ prices }) => {
+  const [showAllPrices, setShowAllPrices] = useState(false);
   const displayPriceData = getDisplayPrices(prices);
   const finishType = getPriceFinishType(prices);
   const lastUpdated = prices?.updatedAt ? new Date(prices.updatedAt).toLocaleDateString() : null;
@@ -45,9 +46,30 @@ const CardPricing: React.FC<CardPricingProps> = ({ prices }) => {
     <div className="card-pricing">
       <div className="flex justify-between items-center mb-3">
         <h3 className="text-lg font-semibold text-gray-800">TCG Market Pricing</h3>
-        <span className="text-sm font-medium px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">
-          {finishType}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">
+            {finishType}
+          </span>
+          {availablePriceTypes.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setShowAllPrices(!showAllPrices)}
+              className="text-xs flex items-center text-gray-600 hover:text-gray-800"
+            >
+              {showAllPrices ? (
+                <>
+                  <ChevronUpIcon className="h-4 w-4 mr-1" />
+                  Hide
+                </>
+              ) : (
+                <>
+                  <ChevronDownIcon className="h-4 w-4 mr-1" />
+                  Show All
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       {displayPriceData ? (
@@ -93,21 +115,54 @@ const CardPricing: React.FC<CardPricingProps> = ({ prices }) => {
             </div>
           </div>
 
-          {/* Other available price types */}
-          {availablePriceTypes.length > 1 && (
+          {/* All available price types */}
+          {showAllPrices && availablePriceTypes.length > 0 && (
             <div className="mt-3">
-              <p className="text-xs font-medium text-gray-500 mb-2">Other Available Prices:</p>
+              <p className="text-xs font-medium text-gray-500 mb-2">All Available Prices:</p>
               <div className="grid grid-cols-2 gap-2">
-                {availablePriceTypes.filter(type => type !== finishType.toLowerCase().replace(/ /g, '')).map(priceType => {
+                {availablePriceTypes.map(priceType => {
                   const priceData = prices[priceType as keyof CardPrices];
-                  if (!priceData?.market) return null;
+                  if (!priceData) return null;
 
                   const displayName = priceType.replace(/([A-Z])/g, ' $1').trim();
+                  const isCurrentType = priceType.toLowerCase().replace(/ /g, '') === finishType.toLowerCase().replace(/ /g, '');
 
                   return (
-                    <div key={priceType} className="bg-gray-50 p-2 rounded border border-gray-200 flex justify-between items-center">
-                      <span className="text-xs font-medium">{displayName}</span>
-                      <span className="text-sm font-semibold">{formatPrice(priceData.market)}</span>
+                    <div key={priceType}
+                      className={`p-2 rounded border flex flex-col ${isCurrentType ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-medium">{displayName}</span>
+                        {isCurrentType && (
+                          <span className="text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded">Current</span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 mt-1">
+                        {priceData.market && (
+                          <div className="text-xs">
+                            <span className="text-gray-500">Market:</span>
+                            <span className="font-semibold text-green-600 ml-1">{formatPrice(priceData.market)}</span>
+                          </div>
+                        )}
+                        {priceData.low && (
+                          <div className="text-xs">
+                            <span className="text-gray-500">Low:</span>
+                            <span className="font-semibold text-blue-600 ml-1">{formatPrice(priceData.low)}</span>
+                          </div>
+                        )}
+                        {priceData.mid && (
+                          <div className="text-xs">
+                            <span className="text-gray-500">Mid:</span>
+                            <span className="font-semibold ml-1">{formatPrice(priceData.mid)}</span>
+                          </div>
+                        )}
+                        {priceData.high && (
+                          <div className="text-xs">
+                            <span className="text-gray-500">High:</span>
+                            <span className="font-semibold text-red-600 ml-1">{formatPrice(priceData.high)}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
