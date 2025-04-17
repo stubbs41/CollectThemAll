@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PokemonTCG } from 'pokemon-tcg-sdk-typescript';
+import { PokemonTCG, findCardByID } from 'pokemon-tcg-sdk-typescript/dist/sdk';
+import { getCardById } from '@/lib/pokemonTcgApi'; // Import our direct API client as fallback
 
 // Get API key from environment variables
 const apiKey = process.env.POKEMON_TCG_API_KEY || '';
+
+// Make sure PokemonTCG is defined before trying to configure it
+if (apiKey && typeof PokemonTCG !== 'undefined' && PokemonTCG.configure) {
+  try {
+    PokemonTCG.configure({ apiKey });
+    console.log('Pokemon TCG SDK configured with API key in card-pricing route');
+  } catch (error) {
+    console.error('Error configuring Pokemon TCG SDK in card-pricing route:', error);
+  }
+} else {
+  console.warn('Pokemon TCG API Key not found or SDK not available in card-pricing route. API rate limits may apply.');
+}
 
 /**
  * API route for fetching just the pricing data for a specific card
@@ -19,11 +32,15 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Configure API key
-    PokemonTCG.configure({ apiKey });
-
-    // Fetch card from Pokemon TCG API
-    const card = await PokemonTCG.findCardByID(cardId);
+    // Try to fetch card from Pokemon TCG API using the SDK
+    let card;
+    try {
+      card = await findCardByID(cardId);
+    } catch (sdkError) {
+      console.warn(`SDK error fetching card ${cardId}, falling back to direct API client:`, sdkError);
+      // Fallback to our direct API client
+      card = await getCardById(cardId);
+    }
 
     if (!card) {
       return NextResponse.json({ error: 'Card not found' }, { status: 404 });
@@ -53,6 +70,12 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching card pricing:', error);
-    return NextResponse.json({ error: 'Failed to fetch card pricing' }, { status: 500 });
+
+    // Provide more detailed error message
+    const errorMessage = error instanceof Error
+      ? `Failed to fetch card pricing: ${error.message}`
+      : 'Failed to fetch card pricing';
+
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
