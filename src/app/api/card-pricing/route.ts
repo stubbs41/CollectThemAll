@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PokemonTCG, findCardByID } from 'pokemon-tcg-sdk-typescript/dist/sdk';
+import { findCardByID } from 'pokemon-tcg-sdk-typescript/dist/sdk';
 import { getCardById } from '@/lib/pokemonTcgApi'; // Import our direct API client as fallback
 import { getWithExpiry, setWithExpiry, CACHE_TIMES, CACHE_KEYS, createCacheKey } from '@/lib/cacheUtils';
 
@@ -7,26 +7,13 @@ import { getWithExpiry, setWithExpiry, CACHE_TIMES, CACHE_KEYS, createCacheKey }
 const apiKey = process.env.POKEMON_TCG_API_KEY || '';
 
 // Flag to track if API key is available
-let isApiKeyConfigured = false;
+const isApiKeyConfigured = !!apiKey;
 
-// Make sure PokemonTCG is defined before trying to configure it
-if (apiKey && typeof PokemonTCG !== 'undefined' && PokemonTCG.configure) {
-  try {
-    PokemonTCG.configure({ apiKey });
-    isApiKeyConfigured = true;
-    console.log('Pokemon TCG SDK configured with API key in card-pricing route');
-  } catch (error) {
-    console.error('Error configuring Pokemon TCG SDK in card-pricing route:', error);
-  }
+// Log API key status (server-side only)
+if (isApiKeyConfigured) {
+  console.log('[Server] Pokemon TCG API key is configured in card-pricing route');
 } else {
-  // Log a more detailed warning message to help with debugging
-  if (!apiKey) {
-    console.warn('Pokemon TCG API Key not found in environment variables. API rate limits may apply.');
-  } else if (typeof PokemonTCG === 'undefined') {
-    console.warn('Pokemon TCG SDK is undefined in card-pricing route. Check imports.');
-  } else if (!PokemonTCG.configure) {
-    console.warn('Pokemon TCG SDK configure method not available in card-pricing route. Check SDK version.');
-  }
+  console.warn('[Server] Pokemon TCG API key is not configured in environment variables. API rate limits may apply.');
 }
 
 /**
@@ -63,23 +50,45 @@ export async function GET(request: NextRequest) {
     }
 
     // Log API key status to help with debugging
-    console.log(`Fetching pricing for card ${cardId}. API key configured: ${isApiKeyConfigured}`);
+    console.log(`[Server] Fetching pricing for card ${cardId}. API key configured: ${isApiKeyConfigured}`);
 
-    // Try to fetch card from Pokemon TCG API using the SDK
+    // Try to fetch card directly from the Pokemon TCG API
     let card;
-    let dataSource = 'sdk';
+    let dataSource = 'direct-api';
 
     try {
       if (isApiKeyConfigured) {
-        card = await findCardByID(cardId);
+        // Make a direct API request with the API key
+        const headers = {
+          'X-Api-Key': apiKey
+        };
+
+        const response = await fetch(`https://api.pokemontcg.io/v2/cards/${cardId}`, {
+          headers,
+          cache: 'no-store' // Ensure we're not getting a cached response
+        });
+
+        if (!response.ok) {
+          throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        card = data.data;
       } else {
-        throw new Error('API key not configured, skipping SDK call');
+        throw new Error('API key not configured, falling back to SDK');
       }
-    } catch (sdkError) {
-      console.warn(`SDK error fetching card ${cardId}, falling back to direct API client:`, sdkError);
-      // Fallback to our direct API client
-      dataSource = 'direct-api';
-      card = await getCardById(cardId);
+    } catch (directApiError) {
+      console.warn(`[Server] Direct API error fetching card ${cardId}, falling back to SDK:`, directApiError);
+      // Fallback to the SDK
+      dataSource = 'sdk';
+      try {
+        card = await findCardByID(cardId);
+      } catch (sdkError) {
+        console.warn(`[Server] SDK error fetching card ${cardId}, falling back to direct API client without key:`, sdkError);
+        // Final fallback to our direct API client without key
+        dataSource = 'fallback';
+        card = await getCardById(cardId);
+      }
     }
 
     if (!card) {
@@ -116,7 +125,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error fetching card pricing:', error);
+    console.error('[Server] Error fetching card pricing:', error);
 
     // Provide more detailed error message
     const errorMessage = error instanceof Error
@@ -126,7 +135,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       error: errorMessage,
       cardId,
-      apiKeyConfigured: isApiKeyConfigured
+      apiKeyConfigured: isApiKeyConfigured,
+      apiKeyLength: apiKey ? apiKey.length : 0,
+      apiKeyFirstChar: apiKey ? apiKey.charAt(0) : '',
+      apiKeyLastChar: apiKey ? apiKey.charAt(apiKey.length - 1) : '',
+      environment: process.env.NODE_ENV || 'unknown'
     }, { status: 500 });
   }
 }
