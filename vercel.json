@@ -8,6 +8,16 @@
       "main": true
     }
   },
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next",
+      "config": {
+        "maxLambdaSize": "50mb",
+        "buildCommand": "npm run download-all && npm run build"
+      }
+    }
+  ],
   "regions": ["iad1"],
   "headers": [
     {
