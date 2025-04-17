@@ -43,19 +43,36 @@ const CollectionSelector: React.FC<CollectionSelectorProps> = ({
   // Create a ref for the dropdown container
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside or pressing Escape
   useEffect(() => {
+    // Only add listeners when dropdown is shown
+    if (!showDropdown) return;
+
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      // Close when clicking on the overlay (outside the modal)
+      if (event.target instanceof Element && event.target.classList.contains('modal-overlay')) {
+        setShowDropdown(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
         setShowDropdown(false);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    // Prevent scrolling of the body when modal is open
+    document.body.style.overflow = 'hidden';
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
     };
-  }, []);
+  }, [showDropdown]);
 
   return (
     <div className={`relative ${className}`}>
@@ -77,8 +94,14 @@ const CollectionSelector: React.FC<CollectionSelectorProps> = ({
         </button>
 
         {showDropdown && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30 modal-overlay"
+            onClick={() => setShowDropdown(false)}
+          >
+            <div
+              className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()} // Prevent clicks inside the modal from closing it
+            >
               {/* Header */}
               <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-gray-50">
                 <h3 className="text-lg font-medium text-gray-800">Select Collection</h3>
