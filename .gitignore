@@ -19,6 +19,11 @@
 
 # Custom Cache Directories
 /.imageCache/
+/.cache/
+
+# Pokemon Data and Images
+/public/data/
+/public/images/cards/
 
 # production
 /build
