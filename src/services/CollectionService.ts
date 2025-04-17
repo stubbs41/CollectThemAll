@@ -202,6 +202,7 @@ export default class CollectionService {
       const userId = session.user.id;
 
       // Check if card already exists in this collection and group
+      // Use maybeSingle() instead of single() to avoid 406 errors when no record is found
       const { data: existingCard, error: checkError } = await this.supabase
         .from('collections')
         .select('id, quantity')
@@ -209,7 +210,7 @@ export default class CollectionService {
         .eq('card_id', card.id)
         .eq('collection_type', collectionType)
         .eq('group_name', groupName)
-        .single();
+        .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = not found
         console.error('Error checking for existing card:', checkError.message || checkError);
@@ -250,7 +251,7 @@ export default class CollectionService {
             quantity: 1
           })
           .select()
-          .single();
+          .maybeSingle();
 
         if (insertError) {
           console.error('Error inserting new card:', insertError);
@@ -334,7 +335,7 @@ export default class CollectionService {
         .eq('card_id', cardId)
         .eq('collection_type', collectionType)
         .eq('group_name', groupName)
-        .single();
+        .maybeSingle();
 
       // Handle case where card is not found
       if (checkError && checkError.code === 'PGRST116') {
@@ -428,7 +429,7 @@ export default class CollectionService {
         .eq('card_id', cardId)
         .eq('collection_type', collectionType)
         .eq('group_name', groupName)
-        .single();
+        .maybeSingle();
 
       return !error && data !== null;
     } catch (error) {
@@ -469,7 +470,7 @@ export default class CollectionService {
         .eq('card_id', cardId)
         .eq('collection_type', collectionType)
         .eq('group_name', groupName)
-        .single();
+        .maybeSingle();
 
       if (error || !data) return 0;
       return data.quantity;
@@ -498,7 +499,7 @@ export default class CollectionService {
         .select('id')
         .eq('user_id', session.user.id)
         .eq('name', groupName)
-        .single();
+        .maybeSingle();
 
       if (existingGroup) {
         return { success: false, error: 'A collection group with this name already exists' };
@@ -516,7 +517,7 @@ export default class CollectionService {
           total_value: 0
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (insertError) {
         console.error('Error creating collection group:', insertError);
@@ -563,7 +564,7 @@ export default class CollectionService {
         .select('id')
         .eq('user_id', session.user.id)
         .eq('name', newName)
-        .single();
+        .maybeSingle();
 
       if (existingGroup) {
         return { success: false, error: 'A collection group with this name already exists' };
@@ -575,7 +576,7 @@ export default class CollectionService {
         .select('id')
         .eq('user_id', session.user.id)
         .eq('name', oldName)
-        .single();
+        .maybeSingle();
 
       if (groupError || !groupData) {
         return { success: false, error: 'Collection group not found' };
@@ -823,7 +824,7 @@ export default class CollectionService {
         .select('id')
         .eq('user_id', session.user.id)
         .eq('name', groupName)
-        .single();
+        .maybeSingle();
 
       if (groupError) {
         console.error('Error checking collection group:', groupError);
@@ -888,7 +889,7 @@ export default class CollectionService {
           // allow_comments: options?.allow_comments || false
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (createError) throw createError;
 
@@ -925,7 +926,7 @@ export default class CollectionService {
           .select('id')
           .eq('user_id', session.user.id)
           .eq('name', targetGroupName)
-          .single();
+          .maybeSingle();
 
         if (!existingGroup) {
           // Create the new group
