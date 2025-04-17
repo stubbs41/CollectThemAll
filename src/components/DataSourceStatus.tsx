@@ -4,7 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { isUsingLocalData } from '@/lib/githubDataManager';
 
 /**
- * Component that displays the current data source status
+ * Displays a fixed status indicator showing whether the app is using local data or GitHub data.
+ *
+ * Shows a colored dot and message at the bottom-right of the screen after a brief delay, reflecting the current data source.
  */
 export default function DataSourceStatus() {
   const [usingLocal, setUsingLocal] = useState<boolean | null>(null);

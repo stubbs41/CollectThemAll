@@ -23,7 +23,11 @@ const DATA_DIR = path.join(process.cwd(), 'public', 'data');
 const SETS_DIR = path.join(DATA_DIR, 'sets');
 const CARDS_DIR = path.join(DATA_DIR, 'cards');
 
-// Create directories if they don't exist
+/**
+ * Ensures that the specified directory exists, creating it recursively if necessary.
+ *
+ * @param {string} dir - The path of the directory to check or create.
+ */
 function ensureDirectoryExists(dir) {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -31,7 +35,15 @@ function ensureDirectoryExists(dir) {
   }
 }
 
-// Download a file from a URL
+/**
+ * Downloads a file from the specified URL and saves it to the given local path.
+ *
+ * @param {string} url - The URL of the file to download.
+ * @param {string} outputPath - The local file path where the downloaded file will be saved.
+ * @returns {Promise<void>} Resolves when the file has been successfully downloaded and saved.
+ *
+ * @throws {Error} If the HTTP response status is not 200 or if a network or file system error occurs during download.
+ */
 async function downloadFile(url, outputPath) {
   return new Promise((resolve, reject) => {
     console.log(`Downloading ${url} to ${outputPath}...`);
@@ -58,7 +70,11 @@ async function downloadFile(url, outputPath) {
   });
 }
 
-// Download sets data
+/**
+ * Downloads the Pokémon TCG sets metadata from the GitHub repository and saves it locally.
+ *
+ * @returns {Promise<Array>} A promise that resolves to an array of set metadata objects.
+ */
 async function downloadSets() {
   ensureDirectoryExists(SETS_DIR);
 
@@ -74,7 +90,12 @@ async function downloadSets() {
   return setsData;
 }
 
-// Download cards data for a set
+/**
+ * Downloads and saves the card data JSON file for a specific set.
+ *
+ * @param {string} setId - The identifier of the set to download cards for.
+ * @returns {Promise<number>} The number of cards downloaded for the set, or 0 if the download fails.
+ */
 async function downloadCardsForSet(setId) {
   // The correct URL structure is /cards/en/{setId}.json
   const cardsUrl = `${GITHUB_RAW_URL}/cards/en/${setId}.json`;
@@ -94,7 +115,13 @@ async function downloadCardsForSet(setId) {
   }
 }
 
-// Main function
+/**
+ * Orchestrates the download of Pokémon TCG set and card data from the official GitHub repository, saving it locally and generating a metadata summary.
+ *
+ * Downloads all available sets metadata, sorts them by release date, and downloads card data for each set in configurable batches to avoid API rate limits. Limits the number of sets downloaded if configured. After completion, writes a metadata file summarizing the download.
+ *
+ * @remark Exits the process with code 1 if any error occurs during the download or file writing process.
+ */
 async function main() {
   console.log('Starting Pokemon TCG data download...');
 
