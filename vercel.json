@@ -1,11 +1,32 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run download-all && npm run build",
   "installCommand": "npm install",
   "framework": "nextjs",
   "git": {
     "deploymentEnabled": {
       "main": true
     }
-  }
-} 
+  },
+  "regions": ["iad1"],
+  "headers": [
+    {
+      "source": "/data/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, stale-while-revalidate=604800"
+        }
+      ]
+    },
+    {
+      "source": "/images/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ]
+}
