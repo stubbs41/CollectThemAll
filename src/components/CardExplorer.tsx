@@ -140,7 +140,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
         }
         return res.json();
       })
-      .then((data: { cards: PokemonCard[], totalCount: number, totalPages: number, isEmptyPage: boolean, message?: string } | undefined) => {
+      .then((data: { cards: PokemonCard[], totalCount: number, totalPages: number, isEmptyPage: boolean, message?: string, redirected?: boolean, requestedPage?: number } | undefined) => {
         if (data) {
           console.log(`CardExplorer: Received ${data.cards.length} cards for page ${pageToFetch} (Filtered).`);
 
@@ -149,6 +149,13 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
             setEmptyPageMessage(data.message);
           } else if (data.cards.length === 0) {
             setEmptyPageMessage(`No cards found for page ${pageToFetch}.`);
+          } else if (data.redirected && data.message) {
+            // Handle page redirection message
+            setEmptyPageMessage(data.message);
+            // Update current page to match what was actually fetched
+            if (pageToFetch !== currentPage) {
+              setCurrentPage(pageToFetch);
+            }
           }
 
           // -- Set BOTH fetched and displayed cards --
@@ -237,6 +244,13 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
             setEmptyPageMessage(`No cards found for "${query}". This Pokémon might not be available in the database.`);
           } else {
             setEmptyPageMessage(`No cards found matching "${query}" on page ${pageToFetch}.`);
+          }
+        } else if (data.redirected && data.message) {
+          // Handle page redirection message
+          setEmptyPageMessage(data.message);
+          // Update current page to match what was actually fetched
+          if (pageToFetch !== currentPage) {
+            setCurrentPage(pageToFetch);
           }
         } else {
           setEmptyPageMessage(null);
@@ -484,13 +498,24 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
         <div className="text-center p-10">
           <p className="text-lg text-amber-600 mb-2">{emptyPageMessage}</p>
           <p className="text-md text-gray-600">Try navigating to a lower page number or adjusting your search/filters.</p>
-          <button
-            type="button"
-            onClick={() => setCurrentPage(1)}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-          >
-            Go to First Page
-          </button>
+          <div className="flex justify-center gap-4 mt-4">
+            <button
+              type="button"
+              onClick={() => setCurrentPage(1)}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              Go to First Page
+            </button>
+            {emptyPageMessage.includes('exceeds the maximum available data') && (
+              <button
+                type="button"
+                onClick={() => setCurrentPage(420)} // Hard-coded known last valid page
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+              >
+                Go to Last Valid Page (420)
+              </button>
+            )}
+          </div>
         </div>
       // -- Check displayedCards for empty message --
       ) : !isLoading && displayedCards.length === 0 ? (

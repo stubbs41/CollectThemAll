@@ -40,6 +40,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid limit value (1-250)' }, { status: 400 });
   }
 
+  // Hard limit on page numbers - based on known data availability
+  // We know from testing that pages beyond 420 don't have data
+  const MAX_KNOWN_VALID_PAGE = 420;
+  const originalPage = page;
+  if (page > MAX_KNOWN_VALID_PAGE) {
+    console.log(`/api/cards-search: Requested page ${page} exceeds known valid range. Redirecting to page ${MAX_KNOWN_VALID_PAGE}`);
+    page = MAX_KNOWN_VALID_PAGE;
+  }
+
   // Remove the 10-page limit for searches
   // The Pokemon TCG API has a limit of 250 cards per request, but we can make multiple requests
   // to get more cards if needed
@@ -143,7 +152,12 @@ export async function GET(request: NextRequest) {
       totalPages,
       query,
       directSearch: isSpecificPokemonSearch, // Include this flag in the response
-      isEmptyPage: cards.length === 0
+      isEmptyPage: cards.length === 0,
+      // Include redirection info if the page was adjusted
+      redirected: originalPage > MAX_KNOWN_VALID_PAGE,
+      requestedPage: originalPage > MAX_KNOWN_VALID_PAGE ? originalPage : undefined,
+      message: originalPage > MAX_KNOWN_VALID_PAGE ?
+        `Page ${originalPage} exceeds the maximum available data. Showing page ${MAX_KNOWN_VALID_PAGE} instead.` : undefined
     }, {
       status: 200,
       headers: {

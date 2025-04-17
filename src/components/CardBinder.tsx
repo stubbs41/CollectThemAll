@@ -326,10 +326,23 @@ const CardBinder: React.FC<CardBinderProps> = ({
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                             const pageNum = parseInt((e.target as HTMLInputElement).value);
-                            if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
-                                goToPage(pageNum);
+                            if (!isNaN(pageNum) && pageNum >= 1) {
+                                // Handle page numbers beyond known valid range
+                                const MAX_KNOWN_VALID_PAGE = 420;
+                                if (pageNum > MAX_KNOWN_VALID_PAGE) {
+                                    if (confirm(`Page ${pageNum} may not have data. The last known valid page is 420. Would you like to go to page 420 instead?`)) {
+                                        goToPage(MAX_KNOWN_VALID_PAGE);
+                                    } else {
+                                        // User wants to try the high page anyway
+                                        goToPage(pageNum);
+                                    }
+                                } else if (pageNum <= totalPages) {
+                                    goToPage(pageNum);
+                                } else {
+                                    alert(`Please enter a page number between 1 and ${totalPages}`);
+                                }
                             } else {
-                                alert(`Please enter a page number between 1 and ${totalPages}`);
+                                alert(`Please enter a valid page number`);
                             }
                         }
                     }}
@@ -340,10 +353,23 @@ const CardBinder: React.FC<CardBinderProps> = ({
                     onClick={(e) => {
                         const input = (e.target as HTMLElement).previousElementSibling as HTMLInputElement;
                         const pageNum = parseInt(input.value);
-                        if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
-                            goToPage(pageNum);
+                        if (!isNaN(pageNum) && pageNum >= 1) {
+                            // Handle page numbers beyond known valid range
+                            const MAX_KNOWN_VALID_PAGE = 420;
+                            if (pageNum > MAX_KNOWN_VALID_PAGE) {
+                                if (confirm(`Page ${pageNum} may not have data. The last known valid page is 420. Would you like to go to page 420 instead?`)) {
+                                    goToPage(MAX_KNOWN_VALID_PAGE);
+                                } else {
+                                    // User wants to try the high page anyway
+                                    goToPage(pageNum);
+                                }
+                            } else if (pageNum <= totalPages) {
+                                goToPage(pageNum);
+                            } else {
+                                alert(`Please enter a page number between 1 and ${totalPages}`);
+                            }
                         } else {
-                            alert(`Please enter a page number between 1 and ${totalPages}`);
+                            alert(`Please enter a valid page number`);
                         }
                     }}
                     disabled={isLoading}
