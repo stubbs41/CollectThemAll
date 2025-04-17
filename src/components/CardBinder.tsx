@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react'; // Only import what's actually used
 import Image from 'next/image';
+import Link from 'next/link';
 import { PokemonCard } from '@/lib/types'; // Removed CardPrices import
 import SimpleCardDetailModal from './SimpleCardDetailModal'; // Import the simplified modal component
 import { formatPrice, getMarketPrice, getBestAvailablePrice, getProxiedImageUrl } from '@/lib/utils'; // Import from utils
@@ -156,27 +157,33 @@ const CardBinder: React.FC<CardBinderProps> = ({
 
                         {card ? (
                             <>
-                                <div className={`flex-grow w-full aspect-[5/7] relative transition-opacity duration-200 ${isInHaveCollection ? 'opacity-70' : 'opacity-100'}`}>
-                                    <Image
-                                        src={getProxiedImageUrl(card.images.small)}
-                                        alt={card.name}
-                                        fill
-                                        sizes="(max-width: 768px) 15vw, 10vw"
-                                        className="object-contain"
-                                        priority={index < 8}
-                                        loading={index < 16 ? "eager" : "lazy"}
-                                        quality={85}
-                                        onError={(e) => {
-                                            // Handle image load errors
-                                            const imgElement = e.currentTarget as HTMLImageElement;
-                                            // Set a fallback image
-                                            imgElement.src = '/images/card-placeholder.svg';
-                                            // Add a class to indicate error
-                                            imgElement.classList.add('image-error');
-                                            console.warn(`Failed to load image for card: ${card.id}`);
-                                        }}
-                                    />
-                                </div>
+                                <Link href={`/cards/${card.id}`} prefetch={false} onClick={(e) => {
+                                    // Prevent the link navigation and use the modal instead
+                                    e.preventDefault();
+                                    handleCardClick(card.id);
+                                }}>
+                                    <div className={`flex-grow w-full aspect-[5/7] relative transition-opacity duration-200 ${isInHaveCollection ? 'opacity-70' : 'opacity-100'}`}>
+                                        <Image
+                                            src={getProxiedImageUrl(card.images.small)}
+                                            alt={card.name}
+                                            fill
+                                            sizes="(max-width: 768px) 15vw, 10vw"
+                                            className="object-contain"
+                                            priority={index < 8}
+                                            loading={index < 16 ? "eager" : "lazy"}
+                                            quality={85}
+                                            onError={(e) => {
+                                                // Handle image load errors
+                                                const imgElement = e.currentTarget as HTMLImageElement;
+                                                // Set a fallback image
+                                                imgElement.src = '/images/card-placeholder.svg';
+                                                // Add a class to indicate error
+                                                imgElement.classList.add('image-error');
+                                                console.warn(`Failed to load image for card: ${card.id}`);
+                                            }}
+                                        />
+                                    </div>
+                                </Link>
                                 <div className="flex-shrink-0 p-1 h-[58px] text-center bg-gray-200 w-full border-t border-gray-300">
                                      <p className="text-[10px] font-medium text-gray-900 truncate leading-tight" title={card.name}>{card.name}</p>
                                      <p className="text-[9px] text-gray-600 leading-tight">{card.rarity || 'N/A'}</p>

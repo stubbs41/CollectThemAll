@@ -611,7 +611,7 @@ export default function MyCollection() {
               className="bg-white rounded-lg shadow border border-gray-200 p-3 flex flex-col items-center text-center relative group"
             >
               {/* Card Image */}
-              <Link href={`/cards/${item.card_id}`} className="block w-full">
+              <Link href={`/cards/${item.card_id}`} prefetch={false} className="block w-full">
                 <div className="relative w-full aspect-[2.5/3.5] mb-2">
                   {item.card_image_small ? (
                     <Image
