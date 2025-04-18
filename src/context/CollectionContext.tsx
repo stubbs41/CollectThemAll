@@ -2,7 +2,7 @@
 
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { PokemonCard } from '@/lib/types';
-import { storePrice, getBestPrice } from '@/lib/robustPriceCache';
+import { storePrice } from '@/lib/robustPriceCache';
 import CollectionService, {
   CollectionType,
   CollectionItem,
@@ -303,7 +303,9 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         Array.from(groupData.have.entries()).forEach(([cardId, card]) => {
           // Always store the database price first, even if it's 0
           // This ensures we're using the latest data from the database
-          storePrice(cardId, card.market_price || 0);
+          if (card.market_price && card.market_price > 0) {
+            storePrice(cardId, card.market_price);
+          }
 
           // Log price for debugging
           console.log(`[CollectionContext] Have card ${cardId}: price=${card.market_price || 0}`);
@@ -315,7 +317,9 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         Array.from(groupData.want.entries()).forEach(([cardId, card]) => {
           // Always store the database price first, even if it's 0
           // This ensures we're using the latest data from the database
-          storePrice(cardId, card.market_price || 0);
+          if (card.market_price && card.market_price > 0) {
+            storePrice(cardId, card.market_price);
+          }
 
           // Log price for debugging
           console.log(`[CollectionContext] Want card ${cardId}: price=${card.market_price || 0}`);
