@@ -390,6 +390,12 @@ export default function MyCollection() {
     });
   }, [currentCollection, activeFilter, sortBy, filteredByAdvanced, advancedFilterCriteria, advancedSortBy, localCollectionUpdates]);
 
+  // Update price info states
+  const updatePriceInfoStates = useCallback(() => {
+    setLastUpdateTime(getLastUpdateTimeFormatted());
+    setTimeUntilNextUpdate(getTimeUntilNextUpdate());
+  }, []);
+
   // Function to handle quantity changes
   const handleQuantityChange = useCallback(async (cardId: string, newQuantity: number) => {
     // Update the local collection updates map immediately for UI updates
@@ -465,12 +471,6 @@ export default function MyCollection() {
       console.error('Error updating quantity:', error);
     }
   }, [localCollectionUpdates, activeType, activeGroup, currentCollection, updatePriceInfoStates]);
-
-  // Update price info states
-  const updatePriceInfoStates = useCallback(() => {
-    setLastUpdateTime(getLastUpdateTimeFormatted());
-    setTimeUntilNextUpdate(getTimeUntilNextUpdate());
-  }, []);
 
   // Handle opening the create group modal
   const handleOpenCreateGroupModal = () => {
@@ -634,10 +634,42 @@ export default function MyCollection() {
     setRedirectPath(pathname);
 
     return (
-      <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-md border border-gray-200">
-        <h2 className="text-xl font-semibold text-center text-gray-700 mb-4">Access Your Collection</h2>
-        <p className="text-center text-gray-600 mb-6">Please sign in or sign up to view and manage your Pokémon card collection.</p>
-        <AuthForm />
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-gray-800 text-center mb-6">Login to MyBinder</h1>
+
+        <div className="max-w-md mx-auto">
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-1">
+              <div className="bg-white p-6">
+                {/* Pokéball logo - smaller version */}
+                <div className="flex justify-center mb-4">
+                  <div className="w-8 h-8 relative">
+                    <div className="absolute inset-0 bg-gray-200 rounded-full"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-8 h-4 bg-red-500 rounded-t-full"></div>
+                      <div className="w-8 h-4 bg-white rounded-b-full"></div>
+                      <div className="absolute w-3 h-3 bg-white rounded-full border border-gray-800"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <h2 className="text-lg font-semibold text-gray-800 mb-4 text-center">Welcome Back</h2>
+
+                {/* Auth form with custom styling */}
+                <div className="auth-form-container">
+                  <AuthForm />
+                </div>
+
+                {/* Additional information - more compact */}
+                <div className="mt-3 text-center">
+                  <p className="text-xs text-gray-500">
+                    By signing in, you agree to our Terms of Service and Privacy Policy.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
