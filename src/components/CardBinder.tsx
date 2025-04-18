@@ -249,7 +249,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                                  </p>
                                              </div>
                                          );
-                                     })()
+                                     })()}
 
                                      <p className="text-[8px] text-gray-600 leading-none mt-0.5">Market Price</p>
                                 </div>
