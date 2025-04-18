@@ -199,7 +199,21 @@ export default class CollectionService {
         return { status: 'error', message: 'Authentication required' };
       }
 
+      // Validate card object has required fields
+      if (!card) {
+        console.error('Card object is undefined or null');
+        return { status: 'error', message: 'Invalid card data: Card object is missing' };
+      }
+
+      if (!card.id) {
+        console.error('Card ID is missing from card object:', card);
+        return { status: 'error', message: 'Invalid card data: Card ID is missing' };
+      }
+
       const userId = session.user.id;
+      const cardId = card.id;
+      const cardName = card.name || 'Unknown Card';
+      const cardImageSmall = card.images?.small || '';
 
       // Check if card already exists in this collection and group
       // Use maybeSingle() instead of single() to avoid 406 errors when no record is found
@@ -207,7 +221,7 @@ export default class CollectionService {
         .from('collections')
         .select('id, quantity')
         .eq('user_id', userId)
-        .eq('card_id', card.id)
+        .eq('card_id', cardId)
         .eq('collection_type', collectionType)
         .eq('group_name', groupName)
         .maybeSingle();
@@ -234,7 +248,7 @@ export default class CollectionService {
         }
 
         // Update cache
-        this.updateCacheForCardChange(card.id, collectionType, groupName, newQuantity);
+        this.updateCacheForCardChange(cardId, collectionType, groupName, newQuantity);
         this.invalidateCache();
         return { status: 'updated', newQuantity: newQuantity };
       } else {
@@ -243,9 +257,9 @@ export default class CollectionService {
           .from('collections')
           .insert({
             user_id: userId,
-            card_id: card.id,
-            card_name: card.name || 'Unknown Card',
-            card_image_small: card.images?.small || '',
+            card_id: cardId,
+            card_name: cardName,
+            card_image_small: cardImageSmall,
             collection_type: collectionType,
             group_name: groupName,
             quantity: 1
@@ -259,7 +273,7 @@ export default class CollectionService {
         }
 
         // Update cache
-        this.updateCacheForCardChange(card.id, collectionType, groupName, 1, data);
+        this.updateCacheForCardChange(cardId, collectionType, groupName, 1, data);
         this.invalidateCache();
         return { status: 'added', newQuantity: 1 };
       }

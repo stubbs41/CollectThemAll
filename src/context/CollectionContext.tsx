@@ -225,6 +225,26 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   ): Promise<AddCardResult> => {
     if (!session) return { status: 'error', message: 'Not authenticated' };
 
+    // Validate card and cardId
+    if (!cardId) {
+      console.error('Card ID is missing in addCardToCollection');
+      return { status: 'error', message: 'Card ID is required' };
+    }
+
+    if (!card) {
+      console.error('Card object is missing in addCardToCollection');
+      return { status: 'error', message: 'Card data is required' };
+    }
+
+    // Ensure card has an ID and it matches the provided cardId
+    if (!card.id) {
+      console.log('Card object missing ID, setting it to the provided cardId:', cardId);
+      card = { ...card, id: cardId };
+    } else if (card.id !== cardId) {
+      console.warn(`Card ID mismatch: provided ${cardId} but card object has ${card.id}. Using provided cardId.`);
+      card = { ...card, id: cardId };
+    }
+
     try {
       const result = await collectionService.addCard(card, collectionType, groupName);
       if (result.status === 'added' || result.status === 'updated') {

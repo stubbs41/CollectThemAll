@@ -103,7 +103,7 @@ const BatchCardMover: React.FC<BatchCardMoverProps> = ({ onClose, onComplete }) 
           // Create a valid PokemonCard object from the collection item
           // This ensures we have all the required fields for addCardToCollection
           const cardData = {
-            id: cardId,
+            id: cardId, // This is the most important field
             name: cardItem.card_name || cardItem.card?.name || 'Unknown Card',
             images: {
               small: cardItem.card_image_small || cardItem.card?.images?.small || '',
@@ -142,6 +142,9 @@ const BatchCardMover: React.FC<BatchCardMoverProps> = ({ onClose, onComplete }) 
             tcgplayer: cardItem.card?.tcgplayer || null,
             cardmarket: cardItem.card?.cardmarket || null
           };
+
+          // Double-check that the ID is set correctly
+          console.log(`Preparing to copy card with ID: ${cardId}`, cardData);
 
           // Add to target collection
           const result = await addCardToCollection(
