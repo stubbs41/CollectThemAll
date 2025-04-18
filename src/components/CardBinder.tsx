@@ -1,7 +1,7 @@
 // src/components/CardBinder.tsx
 'use client'; // Add this back for client-side interactivity
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { PokemonCard } from '@/lib/types';
@@ -152,8 +152,23 @@ const CardBinder: React.FC<CardBinderProps> = ({
     // Start index for the current spread (two pages)
     const startIndex = (currentPage - 1) * CARDS_PER_SPREAD;
 
-    // Default to 'Default' group if needed
-    const defaultGroup = 'Default';
+    // Get the last active collection group from localStorage, or default to 'Default'
+    const getActiveGroup = () => {
+      if (typeof window === 'undefined') return 'Default';
+      try {
+        const lastActiveGroup = localStorage.getItem('lastActiveCollectionGroup');
+        const activeGroup = localStorage.getItem('activeCollectionGroup');
+        // First try to use the last active group (from Add Cards click)
+        // Then try the general active group
+        // Finally fall back to 'Default'
+        return lastActiveGroup || activeGroup || 'Default';
+      } catch (error) {
+        console.error('Error getting active group from localStorage:', error);
+        return 'Default';
+      }
+    };
+
+    const defaultGroup = getActiveGroup();
 
     return (
       <div className="flex-1 bg-white rounded-lg shadow p-4 border border-gray-200 relative">
@@ -230,7 +245,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                      <p className="text-[9px] text-gray-600 leading-tight">{card.rarity || 'N/A'}</p>
 
                                      {/* Use getBestAvailablePrice for better pricing fallback */}
-                                     {(() => {
+                                     {useMemo(() => {
                                          // Try to get the best price from the card data
                                          const bestPrice = card ? getBestAvailablePrice(card.tcgplayer?.prices) : null;
 
@@ -259,13 +274,12 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                              finalPrice = null;
                                          }
 
-                                         const isMarketPrice = card && getMarketPrice(card.tcgplayer?.prices) === finalPrice;
-
-                                         // Store the price in BOTH our caches if it's valid
+                                         // Store the price in our cache if it's valid
+                                         // This will be handled by the storePrice function with debouncing
                                          if (card && finalPrice !== null && finalPrice > 0) {
-                                             storeCardPrice(card.id, finalPrice);
+                                             // Only store the price using the robust cache function
+                                             // which will handle debouncing and prevent duplicate storage
                                              storePrice(card.id, finalPrice);
-                                             console.log(`[CardBinder] Stored price ${finalPrice} for card ${card.id}`);
                                          }
 
                                          return (
@@ -275,7 +289,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                                  </p>
                                              </div>
                                          );
-                                     })()}
+                                     }, [card?.id])}
 
                                      <p className="text-[8px] text-gray-600 leading-none mt-0.5">Market Price</p>
                                 </div>

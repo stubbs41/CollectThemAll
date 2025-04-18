@@ -71,10 +71,19 @@ export async function fetchSetsData(): Promise<any[]> {
   }
 }
 
+// Cache to track sets that have failed to load to avoid repeated attempts
+const failedSets = new Set<string>();
+
 /**
  * Fetches cards data for a specific set from local data or GitHub
  */
 export async function fetchCardsForSet(setId: string): Promise<any[]> {
+  // Check if this set has already failed to load
+  if (failedSets.has(setId)) {
+    console.log(`Set ${setId} previously failed to load. Using empty array to prevent repeated attempts.`);
+    return [];
+  }
+
   try {
     // Try to fetch from local data first
     console.log(`Fetching cards data for set ${setId} from local data...`);
@@ -126,18 +135,26 @@ export async function fetchCardsForSet(setId: string): Promise<any[]> {
             return data;
           } else {
             console.warn(`GitHub data file for set ${setId} exists but is empty or invalid. Falling back to API.`);
+            // Mark this set as failed to avoid repeated attempts
+            failedSets.add(setId);
             return []; // Return empty array to allow API fallback
           }
         } catch (jsonError) {
           console.warn(`Error parsing JSON for set ${setId} from GitHub:`, jsonError);
+          // Mark this set as failed to avoid repeated attempts
+          failedSets.add(setId);
           return []; // Return empty array to allow API fallback
         }
       } else {
         console.warn(`GitHub data file for set ${setId} not found (${response.status}). Falling back to API.`);
+        // Mark this set as failed to avoid repeated attempts
+        failedSets.add(setId);
         return []; // Return empty array to allow API fallback
       }
     } catch (githubError) {
       console.warn(`Error fetching cards for set ${setId} from GitHub:`, githubError);
+      // Mark this set as failed to avoid repeated attempts
+      failedSets.add(setId);
       return []; // Return empty array to allow API fallback
     }
   } catch (error) {

@@ -21,8 +21,18 @@ export async function GET() {
 
   try {
     // Make a test request to the Pokemon TCG API
-    // We'll use a well-known card ID that should always exist
-    const testCardId = 'base1-4'; // Charizard from Base Set
+    // We'll use multiple well-known card IDs that should always exist
+    // and try them in sequence until one works
+    const testCardIds = [
+      'sv3-1',    // Scarlet & Violet
+      'swsh1-1',  // Sword & Shield
+      'sm1-1',    // Sun & Moon
+      'xy1-1',    // XY
+      'base1-4'   // Charizard from Base Set (fallback)
+    ];
+
+    // Start with the first card ID
+    let testCardId = testCardIds[0];
 
     // Configure the SDK with the API key
     const headers = {
@@ -31,21 +41,45 @@ export async function GET() {
 
     console.log('[Server] Verifying Pokemon TCG API key with test request...');
 
-    // Make a direct request to the API to test the key
-    const response = await fetch(`https://api.pokemontcg.io/v2/cards/${testCardId}`, {
-      headers,
-      // Add a cache: 'no-store' to ensure we're not getting a cached response
-      cache: 'no-store',
-    });
+    // Try each card ID in sequence until one works
+    let response;
+    let success = false;
+    let lastError = '';
 
-    if (!response.ok) {
-      // If the response is not OK, the API key is not working
-      console.error(`[Server] API key verification failed: ${response.status} ${response.statusText}`);
+    for (const cardId of testCardIds) {
+      try {
+        console.log(`[Server] Trying to verify API key with card ID: ${cardId}`);
+
+        // Make a direct request to the API to test the key
+        response = await fetch(`https://api.pokemontcg.io/v2/cards/${cardId}`, {
+          headers,
+          // Add a cache: 'no-store' to ensure we're not getting a cached response
+          cache: 'no-store',
+        });
+
+        if (response.ok) {
+          // If the response is OK, the API key is working
+          console.log(`[Server] API key verification successful with card ID: ${cardId}`);
+          success = true;
+          break;
+        } else {
+          lastError = `${response.status} ${response.statusText}`;
+          console.warn(`[Server] API key verification failed with card ID ${cardId}: ${lastError}`);
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : 'Unknown error';
+        console.warn(`[Server] Error verifying API key with card ID ${cardId}: ${lastError}`);
+      }
+    }
+
+    if (!success) {
+      // If none of the card IDs worked, the API key is not working
+      console.error(`[Server] API key verification failed after trying all card IDs: ${lastError}`);
       return NextResponse.json({
         success: false,
-        error: `API key verification failed: ${response.status} ${response.statusText}`,
+        error: `API key verification failed: ${lastError}`,
         configured: true,
-        statusCode: response.status,
+        statusCode: response?.status || 500,
       });
     }
 

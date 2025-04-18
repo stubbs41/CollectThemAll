@@ -26,16 +26,34 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
   const [addingToHave, setAddingToHave] = useState<boolean>(false);
   const [addingToWant, setAddingToWant] = useState<boolean>(false);
   const [addSuccess, setAddSuccess] = useState<boolean>(false);
-  const [selectedGroup, setSelectedGroup] = useState<string>('Default');
+  // Get the last active collection group from localStorage, or default to 'Default'
+  const getActiveGroup = () => {
+    if (typeof window === 'undefined') return 'Default';
+    try {
+      const lastActiveGroup = localStorage.getItem('lastActiveCollectionGroup');
+      const activeGroup = localStorage.getItem('activeCollectionGroup');
+      // First try to use the last active group (from Add Cards click)
+      // Then try the general active group
+      // Finally fall back to 'Default'
+      return lastActiveGroup || activeGroup || 'Default';
+    } catch (error) {
+      console.error('Error getting active group from localStorage:', error);
+      return 'Default';
+    }
+  };
+
+  const [selectedGroup, setSelectedGroup] = useState<string>(getActiveGroup());
 
   // Get auth and collection context
   const { session } = useAuth();
   const { addCardToCollection, refreshCollections, activeGroup } = useCollections();
 
-  // Initialize selected group with active group
+  // Initialize selected group with active group if no stored group is found
   useEffect(() => {
-    setSelectedGroup(activeGroup);
-  }, [activeGroup]);
+    if (!selectedGroup && activeGroup) {
+      setSelectedGroup(activeGroup);
+    }
+  }, [activeGroup, selectedGroup]);
 
   const modalRef = useRef<HTMLDivElement>(null);
 

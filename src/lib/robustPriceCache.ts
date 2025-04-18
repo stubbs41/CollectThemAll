@@ -3,8 +3,16 @@
  * This is a client-side only utility that uses localStorage
  */
 
+import { storeCardPrice, getCardPrice } from './pricePersistence';
+
 // In-memory cache for faster access during a single session
 let inMemoryPriceCache: Record<string, number> = {};
+
+// Debounce cache to prevent multiple rapid updates
+const pendingUpdates = new Map<string, { price: number, timeout: NodeJS.Timeout }>();
+
+// Debounce time in milliseconds
+const DEBOUNCE_TIME = 500;
 
 /**
  * Simple function to initialize the cache - no localStorage needed
@@ -13,21 +21,61 @@ export function initializeCache(): Promise<void> {
   return Promise.resolve();
 }
 
+// Track which cards have already been stored to prevent duplicate logs
+// Use a global variable to ensure it persists across module reloads during development
+declare global {
+  interface Window {
+    __storedPriceCards: Set<string>;
+    __priceLogDisabled: boolean;
+  }
+}
+
+// Initialize the global set if it doesn't exist
+if (typeof window !== 'undefined') {
+  window.__storedPriceCards = window.__storedPriceCards || new Set<string>();
+  // Disable price logging completely to avoid console spam
+  window.__priceLogDisabled = true;
+}
+
 /**
- * Store a card's price in the cache
+ * Store a card's price in the cache with debouncing
  * @param cardId The card ID
  * @param price The price to store
  */
 export function storePrice(cardId: string, price: number | null | undefined): void {
   if (!cardId || price === null || price === undefined || price <= 0) return;
 
-  // Store in memory only for the current session
-  inMemoryPriceCache[cardId] = price;
+  // Check if we already have a pending update for this card
+  const pending = pendingUpdates.get(cardId);
+  if (pending) {
+    // If the price is the same, do nothing
+    if (pending.price === price) return;
 
-  // Only log in development mode and only for debugging
-  if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
-    console.log(`[RobustPriceCache] Stored price ${price} for card ${cardId}`);
+    // Clear the existing timeout
+    clearTimeout(pending.timeout);
   }
+
+  // Create a new timeout for this update
+  const timeout = setTimeout(() => {
+    // Store in memory only for the current session
+    inMemoryPriceCache[cardId] = price;
+
+    // Also store in the original price cache for maximum compatibility
+    storeCardPrice(cardId, price);
+
+    // Remove from pending updates
+    pendingUpdates.delete(cardId);
+
+    // Only log once per card per session to prevent console spam
+    // But only if logging is not disabled
+    if (typeof window !== 'undefined' && !window.__priceLogDisabled && !window.__storedPriceCards.has(cardId)) {
+      console.log(`[RobustPriceCache] Stored price ${price} for card ${cardId}`);
+      window.__storedPriceCards.add(cardId);
+    }
+  }, DEBOUNCE_TIME);
+
+  // Store the pending update
+  pendingUpdates.set(cardId, { price, timeout });
 }
 
 /**
