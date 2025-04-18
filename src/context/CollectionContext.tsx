@@ -2,6 +2,7 @@
 
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { PokemonCard } from '@/lib/types';
+import { storePrice, getBestPrice, applyPricesToItems } from '@/lib/robustPriceCache';
 import CollectionService, {
   CollectionType,
   CollectionItem,
@@ -98,13 +99,43 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
           const haveValue = groupInfo?.have_value || 0;
           const wantValue = groupInfo?.want_value || 0;
 
+          // Apply price persistence to the cards before adding to collections
+          // Convert Map to array, apply price persistence, then convert back to Map
+          const haveCards = new Map();
+          Array.from(groupData.have.entries()).forEach(([cardId, card]) => {
+            // Apply price persistence
+            const bestPrice = getBestPrice(cardId, card.market_price);
+            if (bestPrice > 0) {
+              card.market_price = bestPrice;
+            }
+            // Store the price for future use
+            if (card.market_price && card.market_price > 0) {
+              storePrice(cardId, card.market_price);
+            }
+            haveCards.set(cardId, card);
+          });
+
+          const wantCards = new Map();
+          Array.from(groupData.want.entries()).forEach(([cardId, card]) => {
+            // Apply price persistence
+            const bestPrice = getBestPrice(cardId, card.market_price);
+            if (bestPrice > 0) {
+              card.market_price = bestPrice;
+            }
+            // Store the price for future use
+            if (card.market_price && card.market_price > 0) {
+              storePrice(cardId, card.market_price);
+            }
+            wantCards.set(cardId, card);
+          });
+
           // Add "have" collection for this group
           allCollections.push({
             id: `${groupName}-have`,
             name: 'My Collection',
             groupName: groupName,
             type: 'have',
-            cards: groupData.have,
+            cards: haveCards,
             value: haveValue
           });
 
@@ -114,7 +145,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
             name: 'Wishlist',
             groupName: groupName,
             type: 'want',
-            cards: groupData.want,
+            cards: wantCards,
             value: wantValue
           });
         });
@@ -171,13 +202,43 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         const haveValue = groupInfo?.have_value || 0;
         const wantValue = groupInfo?.want_value || 0;
 
+        // Apply price persistence to the cards before adding to collections
+        // Convert Map to array, apply price persistence, then convert back to Map
+        const haveCards = new Map();
+        Array.from(groupData.have.entries()).forEach(([cardId, card]) => {
+          // Apply price persistence
+          const bestPrice = getBestPrice(cardId, card.market_price);
+          if (bestPrice > 0) {
+            card.market_price = bestPrice;
+          }
+          // Store the price for future use
+          if (card.market_price && card.market_price > 0) {
+            storePrice(cardId, card.market_price);
+          }
+          haveCards.set(cardId, card);
+        });
+
+        const wantCards = new Map();
+        Array.from(groupData.want.entries()).forEach(([cardId, card]) => {
+          // Apply price persistence
+          const bestPrice = getBestPrice(cardId, card.market_price);
+          if (bestPrice > 0) {
+            card.market_price = bestPrice;
+          }
+          // Store the price for future use
+          if (card.market_price && card.market_price > 0) {
+            storePrice(cardId, card.market_price);
+          }
+          wantCards.set(cardId, card);
+        });
+
         // Add "have" collection for this group
         allCollections.push({
           id: `${groupName}-have`,
           name: 'My Collection',
           groupName: groupName,
           type: 'have',
-          cards: groupData.have,
+          cards: haveCards,
           value: haveValue
         });
 
@@ -187,7 +248,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
           name: 'Wishlist',
           groupName: groupName,
           type: 'want',
-          cards: groupData.want,
+          cards: wantCards,
           value: wantValue
         });
       });

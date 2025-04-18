@@ -44,12 +44,15 @@ function saveToLocalStorage(): void {
  */
 export function storePrice(cardId: string, price: number | null | undefined): void {
   if (!cardId || price === null || price === undefined || price <= 0) return;
-  
+
   // Store in memory
   inMemoryPriceCache[cardId] = price;
-  
+
   // Save to localStorage
   saveToLocalStorage();
+
+  // Debug log
+  console.log(`[RobustPriceCache] Stored price ${price} for card ${cardId}`);
 }
 
 /**
@@ -59,7 +62,7 @@ export function storePrice(cardId: string, price: number | null | undefined): vo
  */
 export function getPrice(cardId: string): number | undefined {
   if (!cardId) return undefined;
-  
+
   return inMemoryPriceCache[cardId];
 }
 
@@ -70,14 +73,14 @@ export function getPrice(cardId: string): number | undefined {
  */
 export function applyPricesToItems<T extends { card_id: string; market_price?: number | null }>(items: T[]): T[] {
   if (!items || items.length === 0) return items;
-  
+
   return items.map(item => {
     // If the item has a valid price, store it in our cache
     if (item.market_price !== undefined && item.market_price !== null && item.market_price > 0) {
       storePrice(item.card_id, item.market_price);
       return item;
     }
-    
+
     // If the item doesn't have a valid price, try to get it from our cache
     const cachedPrice = getPrice(item.card_id);
     if (cachedPrice !== undefined) {
@@ -86,7 +89,7 @@ export function applyPricesToItems<T extends { card_id: string; market_price?: n
         market_price: cachedPrice
       };
     }
-    
+
     return item;
   });
 }
@@ -101,16 +104,19 @@ export function getBestPrice(cardId: string, currentPrice?: number | null): numb
   // If current price is valid, store it and return it
   if (currentPrice !== undefined && currentPrice !== null && currentPrice > 0) {
     storePrice(cardId, currentPrice);
+    console.log(`[RobustPriceCache] Using current price ${currentPrice} for card ${cardId}`);
     return currentPrice;
   }
-  
+
   // Try to get the price from our cache
   const cachedPrice = getPrice(cardId);
   if (cachedPrice !== undefined) {
+    console.log(`[RobustPriceCache] Using cached price ${cachedPrice} for card ${cardId}`);
     return cachedPrice;
   }
-  
+
   // Default to 0 if no price is available
+  console.log(`[RobustPriceCache] No price found for card ${cardId}, returning 0`);
   return 0;
 }
 
@@ -119,7 +125,7 @@ export function getBestPrice(cardId: string, currentPrice?: number | null): numb
  */
 export function clearPriceCache(): void {
   inMemoryPriceCache = {};
-  
+
   if (typeof window !== 'undefined') {
     try {
       localStorage.removeItem(PRICE_STORAGE_KEY);
