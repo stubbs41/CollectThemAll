@@ -629,6 +629,7 @@ export default function MyCollection() {
               <div className="bg-gray-100 p-3 rounded text-center">
                 <p className="text-sm text-gray-600">Total Value</p>
                 <p className="text-lg font-bold text-gray-800">${collectionStats.totalValue.toFixed(2)}</p>
+                <p className="text-xs text-gray-600 mt-1">Prices: {isUpdatingPrices ? 'Updating...' : `Last updated: ${lastUpdateTime}`}</p>
               </div>
               <div className="bg-gray-100 p-3 rounded text-center">
                 <p className="text-sm text-gray-600">Recently Added</p>
@@ -667,13 +668,7 @@ export default function MyCollection() {
               >
                 Move Cards
               </button>
-              <div className="flex flex-col">
-                <div className="text-xs text-gray-600 flex items-center">
-                  <CurrencyDollarIcon className="h-4 w-4 mr-1" />
-                  <span className="font-medium">Prices: </span>
-                  <span className="ml-1">{isUpdatingPrices ? 'Updating...' : `Last updated: ${lastUpdateTime}`}</span>
-                </div>
-              </div>
+
             </div>
           </div>
 
