@@ -158,9 +158,38 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
             }
           }
 
-          // -- Set BOTH fetched and displayed cards --
+          // -- Set fetched cards --
           setFetchedCards(data.cards);
-          setDisplayedCards(data.cards);
+
+          // Preserve price data when setting displayed cards
+          if (displayedCards.length > 0) {
+            // Create a map of existing card prices by ID
+            const priceMap = new Map();
+            displayedCards.forEach(card => {
+              if (card.tcgplayer?.prices) {
+                priceMap.set(card.id, card.tcgplayer.prices);
+              }
+            });
+
+            // Apply existing prices to new cards
+            const cardsWithPreservedPrices = data.cards.map(card => {
+              if (priceMap.has(card.id) && (!card.tcgplayer?.prices || Object.keys(card.tcgplayer.prices).length === 0)) {
+                return {
+                  ...card,
+                  tcgplayer: {
+                    ...card.tcgplayer,
+                    prices: priceMap.get(card.id)
+                  }
+                };
+              }
+              return card;
+            });
+
+            setDisplayedCards(cardsWithPreservedPrices);
+          } else {
+            setDisplayedCards(data.cards);
+          }
+
           setTotalPages(data.totalPages || Math.ceil(data.totalCount / CARDS_PER_PAGE));
         }
       })
@@ -256,8 +285,35 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
           setEmptyPageMessage(null);
         }
 
-        // -- Set ONLY fetchedCards here --
-        setFetchedCards(data.cards);
+        // -- Set fetchedCards with preserved price data --
+        if (displayedCards.length > 0) {
+          // Create a map of existing card prices by ID
+          const priceMap = new Map();
+          displayedCards.forEach(card => {
+            if (card.tcgplayer?.prices) {
+              priceMap.set(card.id, card.tcgplayer.prices);
+            }
+          });
+
+          // Apply existing prices to new cards
+          const cardsWithPreservedPrices = data.cards.map(card => {
+            if (priceMap.has(card.id) && (!card.tcgplayer?.prices || Object.keys(card.tcgplayer.prices).length === 0)) {
+              return {
+                ...card,
+                tcgplayer: {
+                  ...card.tcgplayer,
+                  prices: priceMap.get(card.id)
+                }
+              };
+            }
+            return card;
+          });
+
+          setFetchedCards(cardsWithPreservedPrices);
+        } else {
+          setFetchedCards(data.cards);
+        }
+
         // Client-side filtering will happen in useEffect to set displayedCards
         setTotalPages(data.totalPages || Math.ceil(data.totalCount / CARDS_PER_PAGE)); // Pagination based on search total
         setSearchPerformed(true);
@@ -323,13 +379,68 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
           // Only apply client filters when in search mode
           const newlyFilteredCards = applyClientSideFilters(fetchedCards, filters);
           console.log(`Client-side filtering complete. Displaying ${newlyFilteredCards.length} of ${fetchedCards.length} fetched cards.`);
-          setDisplayedCards(newlyFilteredCards);
+
+          // Preserve existing price data when updating displayed cards
+          if (displayedCards.length > 0 && newlyFilteredCards.length > 0) {
+              // Create a map of existing card prices by ID
+              const priceMap = new Map();
+              displayedCards.forEach(card => {
+                  if (card.tcgplayer?.prices) {
+                      priceMap.set(card.id, card.tcgplayer.prices);
+                  }
+              });
+
+              // Apply existing prices to new filtered cards
+              const cardsWithPreservedPrices = newlyFilteredCards.map(card => {
+                  if (priceMap.has(card.id) && (!card.tcgplayer?.prices || Object.keys(card.tcgplayer.prices).length === 0)) {
+                      return {
+                          ...card,
+                          tcgplayer: {
+                              ...card.tcgplayer,
+                              prices: priceMap.get(card.id)
+                          }
+                      };
+                  }
+                  return card;
+              });
+
+              setDisplayedCards(cardsWithPreservedPrices);
+          } else {
+              setDisplayedCards(newlyFilteredCards);
+          }
       } else {
           // If not searching, displayedCards are set directly by fetchDataForPage
           // Ensure displayedCards reflects fetchedCards if we switch OUT of search mode
-          setDisplayedCards(fetchedCards);
+          // But preserve price data
+          if (displayedCards.length > 0 && fetchedCards.length > 0) {
+              // Create a map of existing card prices by ID
+              const priceMap = new Map();
+              displayedCards.forEach(card => {
+                  if (card.tcgplayer?.prices) {
+                      priceMap.set(card.id, card.tcgplayer.prices);
+                  }
+              });
+
+              // Apply existing prices to new fetched cards
+              const cardsWithPreservedPrices = fetchedCards.map(card => {
+                  if (priceMap.has(card.id) && (!card.tcgplayer?.prices || Object.keys(card.tcgplayer.prices).length === 0)) {
+                      return {
+                          ...card,
+                          tcgplayer: {
+                              ...card.tcgplayer,
+                              prices: priceMap.get(card.id)
+                          }
+                      };
+                  }
+                  return card;
+              });
+
+              setDisplayedCards(cardsWithPreservedPrices);
+          } else {
+              setDisplayedCards(fetchedCards);
+          }
       }
-  }, [fetchedCards, filters, searchPerformed]); // Rerun when fetchedCards or filters change in search mode
+  }, [fetchedCards, filters, searchPerformed, displayedCards]); // Rerun when fetchedCards or filters change in search mode
 
   // Handle search form submission
   const handleSearch = (e: React.FormEvent) => {

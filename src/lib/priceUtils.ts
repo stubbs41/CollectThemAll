@@ -6,7 +6,7 @@
 const PRICE_UPDATE_TIMESTAMP_KEY = 'last_price_update_timestamp';
 
 // Cache duration for prices (10 minutes in milliseconds)
-export const PRICE_CACHE_DURATION = 10 * 60 * 1000;
+export const PRICE_CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
 /**
  * Check if prices need to be updated based on the last update timestamp

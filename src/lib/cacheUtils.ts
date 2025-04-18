@@ -4,7 +4,7 @@
 
 // Cache expiration times (in milliseconds)
 export const CACHE_TIMES = {
-  SHORT: 5 * 60 * 1000, // 5 minutes
+  SHORT: 10 * 60 * 1000, // 10 minutes (updated from 5 minutes per user preference)
   MEDIUM: 30 * 60 * 1000, // 30 minutes
   LONG: 24 * 60 * 60 * 1000, // 24 hours
 };
