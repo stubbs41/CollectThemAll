@@ -100,16 +100,20 @@ export async function GET(request: NextRequest) {
     const updatePromises = [];
 
     for (const [cardId, price] of priceMap.entries()) {
+      // Log the price update for debugging
+      console.log(`[API] Updating price for card ${cardId} to ${price}`);
+
       const updatePromise = supabase
         .from('collections')
         .update({ market_price: price })
         .eq('user_id', session.user.id)
         .eq('card_id', cardId)
-        .then(({ error }) => {
+        .then(({ error, data }) => {
           if (!error) {
             updatedCount++;
+            console.log(`[API] Successfully updated price for card ${cardId} to ${price}`);
           } else {
-            console.error(`Error updating price for card ${cardId}:`, error);
+            console.error(`[API] Error updating price for card ${cardId}:`, error);
           }
         });
 

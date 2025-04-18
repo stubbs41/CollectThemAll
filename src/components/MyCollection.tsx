@@ -586,8 +586,10 @@ export default function MyCollection() {
                   // Store the updated price in our local updates
                   // We'll use a special key format to distinguish price updates from quantity updates
                   newUpdates.set(`price_${item.card_id}`, updatedPrice);
-                  // Also store in our global cache for persistence
+                  // Store in BOTH our caches for maximum persistence
                   storeCardPrice(item.card_id, updatedPrice);
+                  storePrice(item.card_id, updatedPrice);
+                  console.log(`[MyCollection] Updated price for ${item.card_id} to ${updatedPrice}`);
                 }
               }
             });
@@ -619,12 +621,20 @@ export default function MyCollection() {
     // Update the price info states
     updatePriceInfoStates();
 
+    // Check immediately if prices need to be updated
+    if (shouldUpdatePrices() && !isUpdatingPrices) {
+      console.log('[MyCollection] Prices need updating on mount, updating now...');
+      // Silently update prices in the background
+      handleUpdateMarketPrices(true);
+    }
+
     // Set up an interval to update the time until next update and check for price updates
     const intervalId = setInterval(() => {
       updatePriceInfoStates();
 
       // Check if prices need to be updated based on cache duration
       if (shouldUpdatePrices() && !isUpdatingPrices) {
+        console.log('[MyCollection] Prices need updating, updating now...');
         // Silently update prices in the background
         handleUpdateMarketPrices(true);
       }
