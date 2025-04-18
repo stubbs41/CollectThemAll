@@ -368,7 +368,7 @@ export async function fetchCardsBySet(setId: string): Promise<PokemonCard[]> {
 
 // Cache for card details to avoid redundant fetches
 const cardDetailsCache = new Map<string, {card: PokemonCard, timestamp: number}>();
-const CARD_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CARD_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 // Function to fetch pricing data in the background without blocking the UI
 async function fetchPricingDataInBackground(cardId: string, card: PokemonCard): Promise<void> {
