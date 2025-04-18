@@ -159,37 +159,8 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
           }
 
           // -- Set fetched cards --
+          // We'll let the useEffect handle setting displayedCards with preserved prices
           setFetchedCards(data.cards);
-
-          // Preserve price data when setting displayed cards
-          if (displayedCards.length > 0) {
-            // Create a map of existing card prices by ID
-            const priceMap = new Map();
-            displayedCards.forEach(card => {
-              if (card.tcgplayer?.prices) {
-                priceMap.set(card.id, card.tcgplayer.prices);
-              }
-            });
-
-            // Apply existing prices to new cards
-            const cardsWithPreservedPrices = data.cards.map(card => {
-              if (priceMap.has(card.id) && (!card.tcgplayer?.prices || Object.keys(card.tcgplayer.prices).length === 0)) {
-                return {
-                  ...card,
-                  tcgplayer: {
-                    ...card.tcgplayer,
-                    prices: priceMap.get(card.id)
-                  }
-                };
-              }
-              return card;
-            });
-
-            setDisplayedCards(cardsWithPreservedPrices);
-          } else {
-            setDisplayedCards(data.cards);
-          }
-
           setTotalPages(data.totalPages || Math.ceil(data.totalCount / CARDS_PER_PAGE));
         }
       })
@@ -285,34 +256,9 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
           setEmptyPageMessage(null);
         }
 
-        // -- Set fetchedCards with preserved price data --
-        if (displayedCards.length > 0) {
-          // Create a map of existing card prices by ID
-          const priceMap = new Map();
-          displayedCards.forEach(card => {
-            if (card.tcgplayer?.prices) {
-              priceMap.set(card.id, card.tcgplayer.prices);
-            }
-          });
-
-          // Apply existing prices to new cards
-          const cardsWithPreservedPrices = data.cards.map(card => {
-            if (priceMap.has(card.id) && (!card.tcgplayer?.prices || Object.keys(card.tcgplayer.prices).length === 0)) {
-              return {
-                ...card,
-                tcgplayer: {
-                  ...card.tcgplayer,
-                  prices: priceMap.get(card.id)
-                }
-              };
-            }
-            return card;
-          });
-
-          setFetchedCards(cardsWithPreservedPrices);
-        } else {
-          setFetchedCards(data.cards);
-        }
+        // -- Set fetchedCards --
+        // We'll let the useEffect handle setting displayedCards with preserved prices
+        setFetchedCards(data.cards);
 
         // Client-side filtering will happen in useEffect to set displayedCards
         setTotalPages(data.totalPages || Math.ceil(data.totalCount / CARDS_PER_PAGE)); // Pagination based on search total
@@ -373,74 +319,52 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
     // Cleanup function is handled by the specific fetch/search calls
   }, [currentPage, filters, searchPerformed, activeSearchTerm, fetchDataForPage, searchCards]);
 
+  // Helper function to preserve price data between card updates
+  const preservePriceData = useCallback((oldCards: PokemonCard[], newCards: PokemonCard[]): PokemonCard[] => {
+    if (oldCards.length === 0 || newCards.length === 0) {
+      return newCards;
+    }
+
+    // Create a map of existing card prices by ID
+    const priceMap = new Map();
+    oldCards.forEach(card => {
+      if (card.tcgplayer?.prices) {
+        priceMap.set(card.id, card.tcgplayer.prices);
+      }
+    });
+
+    // Apply existing prices to new cards
+    return newCards.map(card => {
+      if (priceMap.has(card.id) && (!card.tcgplayer?.prices || Object.keys(card.tcgplayer.prices).length === 0)) {
+        return {
+          ...card,
+          tcgplayer: {
+            ...card.tcgplayer,
+            prices: priceMap.get(card.id)
+          }
+        };
+      }
+      return card;
+    });
+  }, []);
+
   // --- Effect to apply client-side filters AFTER search results arrive ---
   useEffect(() => {
-      if (searchPerformed) {
-          // Only apply client filters when in search mode
-          const newlyFilteredCards = applyClientSideFilters(fetchedCards, filters);
-          console.log(`Client-side filtering complete. Displaying ${newlyFilteredCards.length} of ${fetchedCards.length} fetched cards.`);
+    if (searchPerformed) {
+      // Only apply client filters when in search mode
+      const newlyFilteredCards = applyClientSideFilters(fetchedCards, filters);
+      console.log(`Client-side filtering complete. Displaying ${newlyFilteredCards.length} of ${fetchedCards.length} fetched cards.`);
 
-          // Preserve existing price data when updating displayed cards
-          if (displayedCards.length > 0 && newlyFilteredCards.length > 0) {
-              // Create a map of existing card prices by ID
-              const priceMap = new Map();
-              displayedCards.forEach(card => {
-                  if (card.tcgplayer?.prices) {
-                      priceMap.set(card.id, card.tcgplayer.prices);
-                  }
-              });
-
-              // Apply existing prices to new filtered cards
-              const cardsWithPreservedPrices = newlyFilteredCards.map(card => {
-                  if (priceMap.has(card.id) && (!card.tcgplayer?.prices || Object.keys(card.tcgplayer.prices).length === 0)) {
-                      return {
-                          ...card,
-                          tcgplayer: {
-                              ...card.tcgplayer,
-                              prices: priceMap.get(card.id)
-                          }
-                      };
-                  }
-                  return card;
-              });
-
-              setDisplayedCards(cardsWithPreservedPrices);
-          } else {
-              setDisplayedCards(newlyFilteredCards);
-          }
-      } else {
-          // If not searching, displayedCards are set directly by fetchDataForPage
-          // Ensure displayedCards reflects fetchedCards if we switch OUT of search mode
-          // But preserve price data
-          if (displayedCards.length > 0 && fetchedCards.length > 0) {
-              // Create a map of existing card prices by ID
-              const priceMap = new Map();
-              displayedCards.forEach(card => {
-                  if (card.tcgplayer?.prices) {
-                      priceMap.set(card.id, card.tcgplayer.prices);
-                  }
-              });
-
-              // Apply existing prices to new fetched cards
-              const cardsWithPreservedPrices = fetchedCards.map(card => {
-                  if (priceMap.has(card.id) && (!card.tcgplayer?.prices || Object.keys(card.tcgplayer.prices).length === 0)) {
-                      return {
-                          ...card,
-                          tcgplayer: {
-                              ...card.tcgplayer,
-                              prices: priceMap.get(card.id)
-                          }
-                      };
-                  }
-                  return card;
-              });
-
-              setDisplayedCards(cardsWithPreservedPrices);
-          } else {
-              setDisplayedCards(fetchedCards);
-          }
-      }
-  }, [fetchedCards, filters, searchPerformed, displayedCards]); // Rerun when fetchedCards or filters change in search mode
+      // Use the helper function to preserve price data
+      const cardsWithPreservedPrices = preservePriceData(displayedCards, newlyFilteredCards);
+      setDisplayedCards(cardsWithPreservedPrices);
+    } else {
+      // If not searching, ensure displayedCards reflects fetchedCards
+      // But preserve price data
+      const cardsWithPreservedPrices = preservePriceData(displayedCards, fetchedCards);
+      setDisplayedCards(cardsWithPreservedPrices);
+    }
+  }, [fetchedCards, filters, searchPerformed, preservePriceData]); // Rerun when fetchedCards or filters change in search mode
 
   // Handle search form submission
   const handleSearch = (e: React.FormEvent) => {
