@@ -293,13 +293,13 @@ const BatchCardMover: React.FC<BatchCardMoverProps> = ({ onClose, onComplete }) 
                         checked={selectedCards.includes(cardId)}
                         onChange={() => handleCardSelect(cardId)}
                         className="h-4 w-4 text-blue-600"
-                        aria-label={`Select ${item.card.name}`}
-                        title={`Select ${item.card.name}`}
+                        aria-label={`Select ${item.card_name || item.card?.name || 'Card'}`}
+                        title={`Select ${item.card_name || item.card?.name || 'Card'}`}
                       />
-                      <span className="truncate">{item.card.name}</span>
+                      <span className="truncate">{item.card_name || item.card?.name || cardId}</span>
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      Qty: {item.quantity} • {item.card.set?.name || 'Unknown Set'}
+                      Qty: {item.quantity} • {item.card?.set?.name || 'Unknown Set'}
                     </div>
                   </div>
                 ))}
