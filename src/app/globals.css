@@ -5,6 +5,10 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --secondary: #9333ea;
+  --secondary-hover: #7e22ce;
 }
 
 @theme inline {
@@ -25,4 +29,57 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Custom styles for the auth form */
+.auth-form-container form {
+  width: 100%;
+}
+
+.auth-form-container input[type="email"],
+.auth-form-container input[type="password"] {
+  @apply w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out mb-4;
+}
+
+.auth-form-container button[type="submit"] {
+  @apply w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-200 ease-in-out;
+}
+
+.auth-form-container .auth-provider-button {
+  @apply w-full flex items-center justify-center py-3 px-6 rounded-lg border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-200 ease-in-out mb-3;
+}
+
+/* Decorative elements */
+.pokeball-divider {
+  @apply relative flex items-center my-6;
+}
+
+.pokeball-divider::before,
+.pokeball-divider::after {
+  @apply flex-grow border-t border-gray-300;
+  content: '';
+}
+
+.pokeball-divider .pokeball {
+  @apply w-8 h-8 relative mx-4;
+}
+
+.pokeball .outer {
+  @apply absolute inset-0 bg-gray-200 rounded-full;
+}
+
+.pokeball .inner {
+  @apply absolute inset-0 flex items-center justify-center;
+}
+
+.pokeball .top {
+  @apply w-8 h-4 bg-red-500 rounded-t-full;
+}
+
+.pokeball .bottom {
+  @apply w-8 h-4 bg-white rounded-b-full;
+}
+
+.pokeball .center {
+  @apply absolute w-3 h-3 bg-white rounded-full border-2 border-gray-800;
 }
