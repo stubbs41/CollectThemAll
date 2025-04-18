@@ -19,8 +19,15 @@ export default function AuthForm() {
   const redirectPath = storedRedirectPath || pathname;
 
   // Prepare the redirect URL with the current or stored path
-  // Use the current origin to ensure it works on all environments
-  const siteUrl = typeof window !== 'undefined' ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL;
+  // Always use the production URL in production environments
+  const productionUrl = 'https://poke-binder-flax.vercel.app';
+  const siteUrl = typeof window !== 'undefined'
+    ? (process.env.NODE_ENV === 'development'
+        ? window.location.origin
+        : productionUrl)
+    : productionUrl;
+
+  console.log('Using site URL for auth redirect:', siteUrl);
   const redirectUrl = `${siteUrl}/auth/callback?redirectTo=${encodeURIComponent(redirectPath)}`;
 
   // Handle email input and show password field
@@ -35,11 +42,20 @@ export default function AuthForm() {
     // Show login/signup form if user is not logged in
     return (
       <div className="w-full mx-auto">
-        {/* Google Sign In Button - Compact Version */}
+        {/* Google Sign In Button - Using GoogleSignIn component */}
         <div className="mb-3">
           <button
             type="button"
-            onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })}
+            onClick={() => supabase.auth.signInWithOAuth({
+              provider: 'google',
+              options: {
+                redirectTo: redirectUrl,
+                queryParams: {
+                  access_type: 'offline',
+                  prompt: 'consent',
+                }
+              }
+            })}
             className="w-full flex items-center justify-center py-2 px-4 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium"
           >
             <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24">

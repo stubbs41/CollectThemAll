@@ -51,6 +51,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setTimeout(() => {
         // Check if window is defined (client-side only)
         if (typeof window !== 'undefined') {
+          // Check if we're on the production URL
+          const productionUrl = 'https://poke-binder-flax.vercel.app';
+          const currentUrl = window.location.href;
+
+          // If we're not on the production URL and not in development, redirect
+          if (!currentUrl.includes(productionUrl) &&
+              !currentUrl.includes('localhost') &&
+              !currentUrl.includes('127.0.0.1')) {
+            console.log('Redirecting to production URL after auth');
+            // Create a new URL with the production domain
+            const url = new URL(window.location.pathname + window.location.search, productionUrl);
+            url.searchParams.delete('auth_timestamp');
+            window.location.href = url.toString();
+            return;
+          }
+
+          // Otherwise just clean up the URL
           const url = new URL(window.location.href);
           url.searchParams.delete('auth_timestamp');
           window.history.replaceState({}, '', url.toString());
@@ -104,6 +121,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(data.session);
       setUser(data.session?.user || null);
       console.log('Session refreshed:', data.session ? 'Found' : 'Not found');
+
+      // Dispatch an event to notify other components that auth has been refreshed
+      if (typeof window !== 'undefined') {
+        console.log('Dispatching auth-state-change event after manual refresh');
+        window.dispatchEvent(new CustomEvent('auth-state-change', {
+          detail: {
+            event: 'SIGNED_IN',
+            session: data.session,
+            user: data.session?.user || null
+          }
+        }));
+      }
+
       return data;
     } catch (error) {
       console.error('Error refreshing session:', error);
@@ -127,7 +157,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (isAuthRedirect.current) {
           console.log('Auth redirect detected, refreshing session immediately');
           // Add a small delay to ensure cookies are fully set
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
 
         const { data } = await supabase.auth.getSession();
@@ -138,7 +168,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // If we were expecting a session after redirect but didn't get one, refresh again
         if (isAuthRedirect.current && !data.session) {
           console.log('No session found after auth redirect, trying again...');
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 1000));
           const refreshData = await refreshSession();
           if (!refreshData?.session) {
             console.log('Still no session after second attempt');
@@ -149,8 +179,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         initialAuthCheckComplete = true;
 
         // Dispatch an event to notify other components that auth is ready
+        // This is crucial for components that need to know when auth is initialized
         if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('auth-ready', { detail: { session: data.session } }));
+          console.log('Dispatching auth-ready event with session:', data.session ? 'Session exists' : 'No session');
+          window.dispatchEvent(new CustomEvent('auth-ready', {
+            detail: {
+              session: data.session,
+              user: data.session?.user || null
+            }
+          }));
         }
       } catch (error) {
         console.error('Error getting initial session:', error);
@@ -172,10 +209,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Dispatch an event to notify other components that auth state has changed
         if (typeof window !== 'undefined') {
+          console.log('Dispatching auth-state-change event:', event, session ? 'Session exists' : 'No session');
           window.dispatchEvent(new CustomEvent('auth-state-change', {
             detail: {
               event,
-              session
+              session,
+              user: session?.user || null
             }
           }));
         }
