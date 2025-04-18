@@ -61,6 +61,7 @@ export default function SharedCollectionPage() {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string>('Default');
+  const [selectedCollectionType, setSelectedCollectionType] = useState<CollectionType>('have');
   const [isImporting, setIsImporting] = useState(false);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -258,7 +259,7 @@ export default function SharedCollectionPage() {
           card_name: item.card_name,
           card_image_small: item.card_image_small,
           quantity: item.quantity,
-          collection_type: collection.collection_type
+          collection_type: selectedCollectionType // Use the user-selected collection type
         })),
         selectedGroup,
         false // Don't create a new group if it doesn't exist
@@ -268,7 +269,8 @@ export default function SharedCollectionPage() {
         throw new Error(result.error || 'Failed to import collection');
       }
 
-      setImportSuccess(`Successfully imported cards to your "${selectedGroup}" collection!`);
+      const collectionTypeName = selectedCollectionType === 'have' ? 'My Collection' : 'Wishlist';
+      setImportSuccess(`Successfully imported cards to your "${selectedGroup}" ${collectionTypeName}!`);
 
       // Track import event for analytics
       try {
@@ -282,7 +284,8 @@ export default function SharedCollectionPage() {
             eventType: 'import',
             metadata: {
               targetGroup: selectedGroup,
-              collectionType: collection.collection_type
+              collectionType: selectedCollectionType,
+              originalCollectionType: collection.collection_type
             }
           }),
         });
@@ -399,6 +402,35 @@ export default function SharedCollectionPage() {
                       >
                         {isImporting ? 'Importing...' : 'Import to Collection'}
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Collection Type Selector */}
+                  <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="text-sm font-medium text-gray-700 mb-2">Import as:</div>
+                    <div className="flex space-x-3">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="collectionType"
+                          value="have"
+                          checked={selectedCollectionType === 'have'}
+                          onChange={() => setSelectedCollectionType('have')}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">My Collection</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="collectionType"
+                          value="want"
+                          checked={selectedCollectionType === 'want'}
+                          onChange={() => setSelectedCollectionType('want')}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">Wishlist</span>
+                      </label>
                     </div>
                   </div>
 
