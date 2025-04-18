@@ -54,12 +54,7 @@ export default class CollectionService {
     }>;
     lastFetched: number | null;
   } = {
-    groups: new Map([
-      ['Default', {
-        have: new Map(),
-        want: new Map()
-      }]
-    ]),
+    groups: new Map(),
     lastFetched: null
   };
 
@@ -99,12 +94,7 @@ export default class CollectionService {
     // Check authentication
     const { data: { session } } = await this.supabase.auth.getSession();
     if (!session || !session.user) {
-      return new Map([
-        ['Default', {
-          have: new Map(),
-          want: new Map()
-        }]
-      ]);
+      return new Map();
     }
 
     try {
@@ -129,13 +119,7 @@ export default class CollectionService {
         });
       }
 
-      // Ensure Default group always exists
-      if (!this.cache.groups.has('Default')) {
-        this.cache.groups.set('Default', {
-          have: new Map(),
-          want: new Map()
-        });
-      }
+      // Cache is now initialized with groups from the database
 
       // Fetch all collections
       const { data: allData, error: fetchError } = await this.supabase
@@ -174,12 +158,7 @@ export default class CollectionService {
       return this.cache.groups;
     } catch (error) {
       console.error('Error fetching collections:', error);
-      return new Map([
-        ['Default', {
-          have: new Map(),
-          want: new Map()
-        }]
-      ]);
+      return new Map();
     }
   }
 
@@ -189,7 +168,7 @@ export default class CollectionService {
   async addCard(
     card: PokemonCard,
     collectionType: CollectionType,
-    groupName: string = 'Default'
+    groupName: string
   ): Promise<AddCardResult> {
     try {
       // Check authentication and get session
@@ -287,7 +266,7 @@ export default class CollectionService {
   private updateCacheForCardChange(
     cardId: string,
     collectionType: CollectionType,
-    groupName: string = 'Default',
+    groupName: string,
     quantity: number,
     data?: any
   ) {
@@ -328,7 +307,7 @@ export default class CollectionService {
   async removeCard(
     cardId: string,
     collectionType: CollectionType,
-    groupName: string = 'Default',
+    groupName: string,
     decrementOnly: boolean = true
   ): Promise<RemoveCardResult> {
     try {
@@ -417,7 +396,7 @@ export default class CollectionService {
   async isCardInCollection(
     cardId: string,
     collectionType: CollectionType,
-    groupName: string = 'Default'
+    groupName: string
   ): Promise<boolean> {
     // Try to use cache first
     if (this.isCacheValid()) {
@@ -458,7 +437,7 @@ export default class CollectionService {
   async getCardQuantity(
     cardId: string,
     collectionType: CollectionType,
-    groupName: string = 'Default'
+    groupName: string
   ): Promise<number> {
     // Try to use cache first
     if (this.isCacheValid()) {
@@ -708,7 +687,7 @@ export default class CollectionService {
     // Check authentication
     const { data: { session } } = await this.supabase.auth.getSession();
     if (!session || !session.user) {
-      return [{ id: 'default', name: 'Default', description: 'Default collection group', have_value: 0, want_value: 0, total_value: 0 }];
+      return [];
     }
 
     try {
@@ -721,26 +700,15 @@ export default class CollectionService {
 
       if (error) throw error;
 
-      // Ensure Default group always exists
-      if (!groups || groups.length === 0 || !groups.some(g => g.name === 'Default')) {
-        // Create Default group if it doesn't exist
-        await this.createCollectionGroup('Default', 'Default collection group');
-
-        // Fetch again
-        const { data: updatedGroups, error: refetchError } = await this.supabase
-          .from('collection_groups')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .order('name');
-
-        if (refetchError) throw refetchError;
-        return updatedGroups || [];
+      // Return the groups as is
+      if (!groups || groups.length === 0) {
+        return [];
       }
 
       return groups;
     } catch (error) {
       console.error('Error fetching collection groups:', error);
-      return [{ id: 'default', name: 'Default', description: 'Default collection group', have_value: 0, want_value: 0, total_value: 0 }];
+      return [];
     }
   }
 

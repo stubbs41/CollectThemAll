@@ -27,11 +27,6 @@ const CollectionGroupSelector: React.FC<CollectionGroupSelectorProps> = ({ onCre
   const handleDeleteGroup = async (groupName: string, e: React.MouseEvent) => {
     e.stopPropagation();
 
-    if (groupName === 'Default') {
-      setDeleteError('Cannot delete the Default collection group');
-      return;
-    }
-
     if (window.confirm(`Are you sure you want to delete the "${groupName}" collection group? This will delete all cards in this group and cannot be undone.`)) {
       setIsDeleting(groupName);
       setDeleteError(null);
@@ -71,17 +66,17 @@ const CollectionGroupSelector: React.FC<CollectionGroupSelectorProps> = ({ onCre
                 className="block w-full pl-3 pr-10 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm appearance-none font-medium text-gray-900"
                 aria-label="Select collection group"
               >
-              {groups.map(group => {
-                // Skip duplicate 'Default' entries
-                if (group === 'Default' && groups.indexOf(group) !== groups.lastIndexOf(group)) {
-                  return null;
-                }
-                return (
+              {groups.length > 0 ? (
+                groups.map(group => (
                   <option key={group} value={group} className="font-medium text-gray-900">
                     {group}
                   </option>
-                );
-              })}
+                ))
+              ) : (
+                <option value="" className="font-medium text-gray-500">
+                  No collection groups
+                </option>
+              )}
             </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                 <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -102,7 +97,7 @@ const CollectionGroupSelector: React.FC<CollectionGroupSelectorProps> = ({ onCre
           </div>
 
           <div className="flex mt-2 gap-2">
-            {activeGroup !== 'Default' && (
+            {groups.length > 0 && (
               <>
                 <button
                   type="button"

@@ -33,40 +33,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: `Database error: ${fetchError.message}` }, { status: 500 });
     }
 
-    // 3. Ensure Default group exists
-    if (!groups || groups.length === 0 || !groups.some(g => g.name === 'Default')) {
-      // Create Default group
-      const { data: defaultGroup, error: insertError } = await supabase
-        .from('collection_groups')
-        .insert({
-          user_id: session.user.id,
-          name: 'Default',
-          description: 'Default collection group',
-          have_value: 0,
-          want_value: 0,
-          total_value: 0
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('Error creating Default group:', insertError.message);
-        return NextResponse.json({ error: `Database error: ${insertError.message}` }, { status: 500 });
-      }
-
-      // Fetch groups again
-      const { data: updatedGroups, error: refetchError } = await supabase
-        .from('collection_groups')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .order('name');
-
-      if (refetchError) {
-        console.error('Error fetching updated collection groups:', refetchError.message);
-        return NextResponse.json({ error: `Database error: ${refetchError.message}` }, { status: 500 });
-      }
-
-      return NextResponse.json({ groups: updatedGroups ?? [] });
+    // Return the groups as is
+    if (!groups || groups.length === 0) {
+      return NextResponse.json({ groups: [] });
     }
 
     return NextResponse.json({ groups: groups ?? [] });
@@ -254,10 +223,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Collection group not found' }, { status: 404 });
     }
 
-    // 4. Check if this is the Default group
-    if (existingGroup.name === 'Default') {
-      return NextResponse.json({ error: 'Cannot delete the Default collection group' }, { status: 400 });
-    }
+    // No longer preventing deletion of any specific group
 
     // 5. Delete all cards in this group
     const { error: deleteCardsError } = await supabase

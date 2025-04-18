@@ -123,6 +123,9 @@ export default function MyCollection() {
 
   // Get the current collection based on activeGroup and activeType
   const currentCollection = useMemo(() => {
+    // If no active group is selected, return empty array
+    if (!activeGroup) return [];
+
     const collection = collections.find(
       col => col.groupName === activeGroup && col.type === activeType
     );
@@ -202,6 +205,9 @@ export default function MyCollection() {
 
   // Get collection counts with local updates applied
   const collectionCounts = useMemo(() => {
+    // If no active group is selected, return zeros
+    if (!activeGroup) return { have: 0, want: 0 };
+
     // Get base counts from collections
     const haveCollection = collections.find(
       col => col.groupName === activeGroup && col.type === 'have'
@@ -624,6 +630,22 @@ export default function MyCollection() {
     }
   }, [filteredAndSortedCollection, prefetchVisibleCards]);
 
+  // Effect to set active group when groups change
+  useEffect(() => {
+    // If there are groups but no active group is selected, select the first group
+    if (groups.length > 0 && !activeGroup) {
+      setActiveGroup(groups[0]);
+    }
+    // If the active group is not in the groups list anymore, select the first available group
+    else if (groups.length > 0 && !groups.includes(activeGroup)) {
+      setActiveGroup(groups[0]);
+    }
+    // If there are no groups, clear the active group
+    else if (groups.length === 0 && activeGroup) {
+      setActiveGroup('');
+    }
+  }, [groups, activeGroup, setActiveGroup]);
+
   // Render logic
   if (authLoading) {
     return <div className="text-center py-10">Loading authentication...</div>;
@@ -871,6 +893,18 @@ export default function MyCollection() {
       {/* Collection Grid */}
       {collectionsLoading ? (
         <div className="text-center py-10">Loading collection...</div>
+      ) : groups.length === 0 ? (
+        <div className="text-center py-10 bg-white p-6 rounded-lg shadow border border-gray-200">
+          <h3 className="text-xl font-semibold text-gray-700 mb-3">Welcome to MyBinder!</h3>
+          <p className="text-gray-600 mb-4">You don't have any collection groups yet. Create your first collection group to get started.</p>
+          <button
+            type="button"
+            onClick={handleOpenCreateGroupModal}
+            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition"
+          >
+            Create Collection Group
+          </button>
+        </div>
       ) : filteredAndSortedCollection.length === 0 ? (
         <div className="text-center py-10 text-gray-500">
           {activeFilter ? 'No cards match your search.' : `Your ${activeType === 'have' ? 'collection' : 'wishlist'} is empty.`}

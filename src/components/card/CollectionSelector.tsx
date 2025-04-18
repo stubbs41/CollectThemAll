@@ -13,7 +13,7 @@ interface CollectionSelectorProps {
 
 const CollectionSelector: React.FC<CollectionSelectorProps> = ({
   onSelect,
-  selectedGroup = 'Default',
+  selectedGroup = '',
   label = 'Select Collection',
   className = ''
 }) => {

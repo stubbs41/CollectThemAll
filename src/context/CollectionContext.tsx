@@ -63,9 +63,9 @@ interface CollectionProviderProps {
 
 export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children }) => {
   const [collections, setCollections] = useState<Collection[]>([]);
-  const [groups, setGroups] = useState<string[]>(['Default']);
+  const [groups, setGroups] = useState<string[]>([]);
   const [collectionGroups, setCollectionGroups] = useState<CollectionGroup[]>([]);
-  const [activeGroup, setActiveGroup] = useState<string>('Default');
+  const [activeGroup, setActiveGroup] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const { session } = useAuth();
 
@@ -127,14 +127,8 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
       } catch (error) {
         console.error('Error loading collections:', error);
         setCollections([]);
-        setGroups(['Default']);
-        setCollectionGroups([{
-          id: 'default',
-          name: 'Default',
-          have_value: 0,
-          want_value: 0,
-          total_value: 0
-        }]);
+        setGroups([]);
+        setCollectionGroups([]);
       } finally {
         setIsLoading(false);
       }
@@ -145,14 +139,8 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     } else {
       // No session, empty collections
       setCollections([]);
-      setGroups(['Default']);
-      setCollectionGroups([{
-        id: 'default',
-        name: 'Default',
-        have_value: 0,
-        want_value: 0,
-        total_value: 0
-      }]);
+      setGroups([]);
+      setCollectionGroups([]);
       setIsLoading(false);
     }
   }, [session, collectionService]);
@@ -374,9 +362,15 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
       if (result.success) {
         await refreshCollections();
 
-        // If deleting the active group, switch to Default
-        if (activeGroup === groupName) {
-          setActiveGroup('Default');
+        // If deleting the active group, switch to the first available group
+        if (activeGroup === groupName && groups.length > 0) {
+          // Find a group that's not the one being deleted
+          const newActiveGroup = groups.find(g => g !== groupName);
+          if (newActiveGroup) {
+            setActiveGroup(newActiveGroup);
+          } else {
+            setActiveGroup('');
+          }
         }
       }
       return result;
