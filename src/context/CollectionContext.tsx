@@ -37,7 +37,7 @@ export interface CollectionContextType {
   activeGroup: string;
   isLoading: boolean;
   addCardToCollection: (cardId: string, card: PokemonCard, collectionType: CollectionType, groupName?: string) => Promise<AddCardResult>;
-  removeCardFromCollection: (cardId: string, collectionType: CollectionType, groupName?: string) => Promise<RemoveCardResult>;
+  removeCardFromCollection: (cardId: string, collectionType: CollectionType, groupName?: string, decrementOnly?: boolean) => Promise<RemoveCardResult>;
   isCardInCollection: (cardId: string, collectionType: CollectionType, groupName?: string) => boolean;
   isCardInAnyCollection: (cardId: string) => boolean;
   getCardQuantity: (cardId: string, collectionType: CollectionType, groupName?: string) => number;
@@ -262,13 +262,14 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   const removeCardFromCollection = useCallback(async (
     cardId: string,
     collectionType: CollectionType,
-    groupName: string = 'Default'
+    groupName: string = 'Default',
+    decrementOnly: boolean = true
   ): Promise<RemoveCardResult> => {
     if (!session) return { status: 'error', message: 'Not authenticated' };
 
     try {
-      // Use decrementOnly=true to decrement quantity instead of removing entirely (when qty > 1)
-      const result = await collectionService.removeCard(cardId, collectionType, groupName, true);
+      // Pass the decrementOnly parameter to control whether to decrement or remove entirely
+      const result = await collectionService.removeCard(cardId, collectionType, groupName, decrementOnly);
       if (result.status === 'decremented' || result.status === 'removed') {
         // Refresh successful removals/decrements
         await refreshCollections();

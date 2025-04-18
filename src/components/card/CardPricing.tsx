@@ -31,7 +31,7 @@ const getPriceFinishType = (prices: CardPrices | undefined | null): string => {
 };
 
 const CardPricing: React.FC<CardPricingProps> = ({ prices }) => {
-  const [showAllPrices, setShowAllPrices] = useState(false);
+  const [showAllPrices, setShowAllPrices] = useState(true);
   const displayPriceData = getDisplayPrices(prices);
   const finishType = getPriceFinishType(prices);
   const lastUpdated = prices?.updatedAt ? new Date(prices.updatedAt).toLocaleDateString() : null;
@@ -59,7 +59,7 @@ const CardPricing: React.FC<CardPricingProps> = ({ prices }) => {
               {showAllPrices ? (
                 <>
                   <ChevronUpIcon className="h-4 w-4 mr-1" />
-                  Hide
+                  Hide All
                 </>
               ) : (
                 <>
@@ -116,7 +116,7 @@ const CardPricing: React.FC<CardPricingProps> = ({ prices }) => {
           </div>
 
           {/* All available price types */}
-          {showAllPrices && availablePriceTypes.length > 0 && (
+          {showAllPrices && availablePriceTypes.length > 1 && (
             <div className="mt-3">
               <p className="text-xs font-medium text-gray-500 mb-2">All Available Prices:</p>
               <div className="grid grid-cols-2 gap-2">

@@ -16,6 +16,7 @@ const BatchCardMover: React.FC<BatchCardMoverProps> = ({ onClose, onComplete }) 
     collections,
     activeGroup,
     addCardToCollection,
+    removeCardFromCollection,
     refreshCollections
   } = useCollections();
 
@@ -144,18 +145,55 @@ const BatchCardMover: React.FC<BatchCardMoverProps> = ({ onClose, onComplete }) 
           };
 
           // Double-check that the ID is set correctly
-          console.log(`Preparing to copy card with ID: ${cardId}`, cardData);
+          console.log(`Preparing to ${operationType} card with ID: ${cardId}`, cardData);
 
           // Add to target collection
-          const result = await addCardToCollection(
+          const addResult = await addCardToCollection(
             cardId,
             cardData,
             targetType,
             targetGroup
           );
 
-          if (result.status === 'added' || result.status === 'updated') {
-            successCount++;
+          if (addResult.status === 'added' || addResult.status === 'updated') {
+            // If this is a move operation, remove from source collection
+            if (operationType === 'move') {
+              try {
+                // For each quantity of the card, remove it from the source
+                // We need to handle the case where a card has multiple quantities
+                const quantity = cardItem.quantity || 1;
+                let removeSuccess = true;
+
+                // Remove the card completely (not just decrement)
+                // Set decrementOnly to false by passing false as the last parameter
+                for (let i = 0; i < quantity; i++) {
+                  const removeResult = await removeCardFromCollection(
+                    cardId,
+                    sourceType,
+                    sourceGroup,
+                    false // Force complete removal instead of decrementing
+                  );
+
+                  if (removeResult.status !== 'removed' && removeResult.status !== 'decremented') {
+                    console.error(`Failed to remove card ${cardId} from source collection:`, removeResult);
+                    removeSuccess = false;
+                    break;
+                  }
+                }
+
+                if (removeSuccess) {
+                  successCount++;
+                } else {
+                  errorCount++;
+                }
+              } catch (removeErr) {
+                console.error(`Error removing card ${cardId} from source collection:`, removeErr);
+                errorCount++;
+              }
+            } else {
+              // For copy operation, just count as success
+              successCount++;
+            }
           } else {
             errorCount++;
           }
