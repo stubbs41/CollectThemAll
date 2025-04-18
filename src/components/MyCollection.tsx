@@ -1,5 +1,12 @@
 'use client';
 
+// Add timer property to Window interface
+declare global {
+  interface Window {
+    quantityUpdateTimer: ReturnType<typeof setTimeout>;
+  }
+}
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import AuthForm from '@/components/AuthForm';
@@ -126,15 +133,33 @@ export default function MyCollection() {
     return Array.from(collection.cards.values());
   }, [collections, activeGroup, activeType]);
 
-  // Collection statistics
+  // Collection statistics with local updates applied
   const collectionStats = useMemo(() => {
-    const uniqueCards = currentCollection.length;
-    const totalCards = currentCollection.reduce((sum, item) => sum + item.quantity, 0);
+    // Apply local updates to the collection for accurate stats
+    const updatedCollection = currentCollection.map(item => {
+      // Check if we have a local update for this card
+      if (localCollectionUpdates.has(item.card_id)) {
+        const updatedQuantity = localCollectionUpdates.get(item.card_id);
+        // If quantity is 0, we'll filter it out later
+        if (updatedQuantity === 0) {
+          return item;
+        }
+        // Otherwise update the quantity
+        return { ...item, quantity: updatedQuantity! };
+      }
+      return item;
+    }).filter(item => {
+      // Filter out cards with quantity 0 (marked for removal)
+      return !localCollectionUpdates.has(item.card_id) || localCollectionUpdates.get(item.card_id)! > 0;
+    });
+
+    const uniqueCards = updatedCollection.length;
+    const totalCards = updatedCollection.reduce((sum, item) => sum + item.quantity, 0);
 
     // Find recently added cards (last 7 days)
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    const recentlyAdded = currentCollection.filter(
+    const recentlyAdded = updatedCollection.filter(
       item => new Date(item.added_at) >= oneWeekAgo
     ).length;
 
@@ -142,7 +167,7 @@ export default function MyCollection() {
     let highestQuantity = 0;
     let highestQuantityCard: CollectionItem | null = null;
 
-    currentCollection.forEach(item => {
+    updatedCollection.forEach(item => {
       if (item.quantity > highestQuantity) {
         highestQuantity = item.quantity;
         highestQuantityCard = item;
@@ -150,7 +175,7 @@ export default function MyCollection() {
     });
 
     // Calculate total value
-    const totalValue = currentCollection.reduce(
+    const totalValue = updatedCollection.reduce(
       (sum, item) => sum + (item.market_price || 0) * item.quantity,
       0
     );
@@ -163,10 +188,11 @@ export default function MyCollection() {
       highestQuantity,
       totalValue
     };
-  }, [currentCollection]);
+  }, [currentCollection, localCollectionUpdates]);
 
-  // Get collection counts
+  // Get collection counts with local updates applied
   const collectionCounts = useMemo(() => {
+    // Get base counts from collections
     const haveCollection = collections.find(
       col => col.groupName === activeGroup && col.type === 'have'
     );
@@ -174,11 +200,35 @@ export default function MyCollection() {
       col => col.groupName === activeGroup && col.type === 'want'
     );
 
+    // Start with the base counts
+    let haveCount = haveCollection ? haveCollection.cards.size : 0;
+    let wantCount = wantCollection ? wantCollection.cards.size : 0;
+
+    // Adjust counts based on local updates (cards with quantity 0 should be removed from count)
+    if (localCollectionUpdates.size > 0) {
+      // Count cards that have been removed (quantity set to 0)
+      const removedHaveCards = Array.from(localCollectionUpdates.entries())
+        .filter(([cardId, qty]) => {
+          // Check if this card is in the 'have' collection and has been set to 0
+          return qty === 0 && haveCollection?.cards.has(cardId);
+        }).length;
+
+      const removedWantCards = Array.from(localCollectionUpdates.entries())
+        .filter(([cardId, qty]) => {
+          // Check if this card is in the 'want' collection and has been set to 0
+          return qty === 0 && wantCollection?.cards.has(cardId);
+        }).length;
+
+      // Adjust counts
+      haveCount -= removedHaveCards;
+      wantCount -= removedWantCards;
+    }
+
     return {
-      have: haveCollection ? haveCollection.cards.size : 0,
-      want: wantCollection ? wantCollection.cards.size : 0
+      have: haveCount,
+      want: wantCount
     };
-  }, [collections, activeGroup]);
+  }, [collections, activeGroup, localCollectionUpdates]);
 
   // Apply sorting and filtering to the collection
   const filteredAndSortedCollection = useMemo(() => {
@@ -322,7 +372,7 @@ export default function MyCollection() {
 
   // Function to handle quantity changes
   const handleQuantityChange = useCallback((cardId: string, newQuantity: number) => {
-    // Update the local collection updates map
+    // Update the local collection updates map immediately for UI updates
     const newUpdates = new Map(localCollectionUpdates);
     if (newQuantity === 0) {
       // Mark for removal
@@ -333,20 +383,28 @@ export default function MyCollection() {
     }
     setLocalCollectionUpdates(newUpdates);
 
-    // If quantity changed to 0, we need to refresh the collection to remove the card
-    if (newQuantity === 0) {
-      // Debounce the refresh to avoid multiple refreshes
-      const timeSinceLastRefresh = Date.now() - lastRefreshTime;
-      if (timeSinceLastRefresh > 2000) {
+    // Schedule a background refresh to sync with the server
+    // Use a debounce mechanism to avoid too many refreshes
+    const timeSinceLastRefresh = Date.now() - lastRefreshTime;
+
+    // If it's been more than 5 seconds since the last refresh, do it now
+    if (timeSinceLastRefresh > 5000) {
+      // Do a silent refresh in the background
+      setTimeout(() => {
         refreshCollections();
         setLastRefreshTime(Date.now());
-      } else {
-        // Debounce the refresh to avoid multiple refreshes
-        setTimeout(() => {
-          refreshCollections();
-          setLastRefreshTime(Date.now());
-        }, 2000);
-      }
+        // Clear the local updates after refresh to avoid double-counting
+        setLocalCollectionUpdates(new Map());
+      }, 500); // Small delay to ensure UI updates first
+    } else {
+      // Otherwise, schedule a refresh for later
+      clearTimeout(window.quantityUpdateTimer);
+      window.quantityUpdateTimer = setTimeout(() => {
+        refreshCollections();
+        setLastRefreshTime(Date.now());
+        // Clear the local updates after refresh to avoid double-counting
+        setLocalCollectionUpdates(new Map());
+      }, 5000); // Wait 5 seconds after the last quantity change
     }
   }, [localCollectionUpdates, refreshCollections, lastRefreshTime]);
 
@@ -437,13 +495,19 @@ export default function MyCollection() {
     // Update the price info states
     updatePriceInfoStates();
 
-    // Set up an interval to update the time until next update
+    // Set up an interval to update the time until next update and check for price updates
     const intervalId = setInterval(() => {
       updatePriceInfoStates();
-    }, 60000); // Update every minute
+
+      // Check if prices need to be updated based on cache duration
+      if (shouldUpdatePrices() && !isUpdatingPrices) {
+        // Silently update prices in the background
+        handleUpdateMarketPrices(true);
+      }
+    }, 60000); // Check every minute
 
     return () => clearInterval(intervalId);
-  }, [updatePriceInfoStates]);
+  }, [updatePriceInfoStates, handleUpdateMarketPrices, isUpdatingPrices]);
 
   // Separate effect to handle auto price updates
   useEffect(() => {
@@ -553,14 +617,6 @@ export default function MyCollection() {
                   <CurrencyDollarIcon className="h-4 w-4 mr-1" />
                   <span className="font-medium">Prices: </span>
                   <span className="ml-1">{isUpdatingPrices ? 'Updating...' : `Last updated: ${lastUpdateTime}`}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleUpdateMarketPrices(false)}
-                    disabled={isUpdatingPrices}
-                    className="ml-2 text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
-                  >
-                    {isUpdatingPrices ? 'Updating...' : 'Update Now'}
-                  </button>
                 </div>
               </div>
             </div>
