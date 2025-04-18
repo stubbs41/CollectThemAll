@@ -120,34 +120,17 @@ export function applyPricesToItems<T extends { card_id: string; market_price?: n
 /**
  * Get the best available price for a card
  * @param cardId The card ID
- * @param currentPrice The current price from the API
- * @returns The best available price (always prefers current price)
- */
-export function getBestPrice(cardId: string, currentPrice?: number | null): number {
-  // If current price is valid, store it and return it
-  if (currentPrice !== undefined && currentPrice !== null && currentPrice > 0) {
-    storePrice(cardId, currentPrice);
-    return currentPrice;
-  }
-
-  // Try to get the price from our cache
-  const cachedPrice = getPrice(cardId);
-  if (cachedPrice !== undefined) {
-    return cachedPrice;
-  }
-
-  // Default to 0 if no price is available
-  return 0;
-}
-
-/**
- * Get the best available price for a card
- * @param cardId The card ID
  * @param fallbackPrice The fallback price to use if no price is found
  * @returns The best available price or the fallback price
  */
 export function getBestPrice(cardId: string, fallbackPrice: number | null): number {
   if (!cardId) return 0;
+
+  // If fallback price is valid, store it and return it
+  if (fallbackPrice !== undefined && fallbackPrice !== null && fallbackPrice > 0) {
+    storePrice(cardId, fallbackPrice);
+    return fallbackPrice;
+  }
 
   // Check the in-memory cache first
   const cachedPrice = inMemoryPriceCache[cardId];
@@ -161,8 +144,8 @@ export function getBestPrice(cardId: string, fallbackPrice: number | null): numb
     return originalPrice;
   }
 
-  // Fall back to the provided fallback price
-  return fallbackPrice && fallbackPrice > 0 ? fallbackPrice : 0;
+  // Default to 0 if no price is available
+  return 0;
 }
 
 /**
