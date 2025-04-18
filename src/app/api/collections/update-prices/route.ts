@@ -100,8 +100,10 @@ export async function GET(request: NextRequest) {
     const updatePromises = [];
 
     for (const [cardId, price] of priceMap.entries()) {
-      // Log the price update for debugging
-      console.log(`[API] Updating price for card ${cardId} to ${price}`);
+      // Log the price update for debugging (only in development)
+      if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+        console.log(`[API] Updating price for card ${cardId} to ${price}`);
+      }
 
       const updatePromise = supabase
         .from('collections')
@@ -111,8 +113,12 @@ export async function GET(request: NextRequest) {
         .then(({ error, data }) => {
           if (!error) {
             updatedCount++;
-            console.log(`[API] Successfully updated price for card ${cardId} to ${price}`);
+            // Only log in development mode and only for debugging
+            if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+              console.log(`[API] Successfully updated price for card ${cardId} to ${price}`);
+            }
           } else {
+            // Always log errors
             console.error(`[API] Error updating price for card ${cardId}:`, error);
           }
         });

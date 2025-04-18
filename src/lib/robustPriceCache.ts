@@ -51,8 +51,10 @@ export function storePrice(cardId: string, price: number | null | undefined): vo
   // Save to localStorage
   saveToLocalStorage();
 
-  // Debug log
-  console.log(`[RobustPriceCache] Stored price ${price} for card ${cardId}`);
+  // Only log in development mode and only for debugging
+  if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+    console.log(`[RobustPriceCache] Stored price ${price} for card ${cardId}`);
+  }
 }
 
 /**
@@ -104,19 +106,28 @@ export function getBestPrice(cardId: string, currentPrice?: number | null): numb
   // If current price is valid, store it and return it
   if (currentPrice !== undefined && currentPrice !== null && currentPrice > 0) {
     storePrice(cardId, currentPrice);
-    console.log(`[RobustPriceCache] Using current price ${currentPrice} for card ${cardId}`);
+    // Only log in development mode and only for debugging
+    if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+      console.log(`[RobustPriceCache] Using current price ${currentPrice} for card ${cardId}`);
+    }
     return currentPrice;
   }
 
   // Try to get the price from our cache
   const cachedPrice = getPrice(cardId);
   if (cachedPrice !== undefined) {
-    console.log(`[RobustPriceCache] Using cached price ${cachedPrice} for card ${cardId}`);
+    // Only log in development mode and only for debugging
+    if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+      console.log(`[RobustPriceCache] Using cached price ${cachedPrice} for card ${cardId}`);
+    }
     return cachedPrice;
   }
 
   // Default to 0 if no price is available
-  console.log(`[RobustPriceCache] No price found for card ${cardId}, returning 0`);
+  // Only log in development mode and only for debugging
+  if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+    console.log(`[RobustPriceCache] No price found for card ${cardId}, returning 0`);
+  }
   return 0;
 }
 

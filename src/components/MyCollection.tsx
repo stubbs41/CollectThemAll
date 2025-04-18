@@ -284,7 +284,10 @@ export default function MyCollection() {
           updatedItem.market_price = bestPrice;
           // Store this price in both caches for maximum persistence
           storeCardPrice(item.card_id, bestPrice);
-          console.log(`[MyCollection] Using robust cached price ${bestPrice} for card ${item.card_id}`);
+          // Only log in development mode and only for debugging
+          if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+            console.log(`[MyCollection] Using robust cached price ${bestPrice} for card ${item.card_id}`);
+          }
         } else {
           // Fall back to the original cache as a last resort
           const fallbackPrice = getCardPriceWithFallback(item.card_id, updatedItem.market_price);
@@ -292,12 +295,18 @@ export default function MyCollection() {
             updatedItem.market_price = fallbackPrice;
             // Store in robust cache for future use
             storePrice(item.card_id, fallbackPrice);
-            console.log(`[MyCollection] Using fallback price ${fallbackPrice} for card ${item.card_id}`);
+            // Only log in development mode and only for debugging
+            if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+              console.log(`[MyCollection] Using fallback price ${fallbackPrice} for card ${item.card_id}`);
+            }
           } else if (updatedItem.market_price > 0) {
             // If we have a valid market price from the database, store it in both caches
             storeCardPrice(item.card_id, updatedItem.market_price);
             storePrice(item.card_id, updatedItem.market_price);
-            console.log(`[MyCollection] Using database price ${updatedItem.market_price} for card ${item.card_id}`);
+            // Only log in development mode and only for debugging
+            if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+              console.log(`[MyCollection] Using database price ${updatedItem.market_price} for card ${item.card_id}`);
+            }
           }
         }
       }
@@ -603,7 +612,10 @@ export default function MyCollection() {
                   // Store in BOTH our caches for maximum persistence
                   storeCardPrice(item.card_id, updatedPrice);
                   storePrice(item.card_id, updatedPrice);
-                  console.log(`[MyCollection] Updated price for ${item.card_id} to ${updatedPrice}`);
+                  // Only log in development mode and only for debugging
+                  if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+                    console.log(`[MyCollection] Updated price for ${item.card_id} to ${updatedPrice}`);
+                  }
                 }
               }
             });
@@ -637,7 +649,10 @@ export default function MyCollection() {
 
     // Check immediately if prices need to be updated
     if (shouldUpdatePrices() && !isUpdatingPrices) {
-      console.log('[MyCollection] Prices need updating on mount, updating now...');
+      // Only log in development mode and only for debugging
+      if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+        console.log('[MyCollection] Prices need updating on mount, updating now...');
+      }
       // Silently update prices in the background
       handleUpdateMarketPrices(true);
     }
@@ -648,7 +663,10 @@ export default function MyCollection() {
 
       // Check if prices need to be updated based on cache duration
       if (shouldUpdatePrices() && !isUpdatingPrices) {
-        console.log('[MyCollection] Prices need updating, updating now...');
+        // Only log in development mode and only for debugging
+        if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+          console.log('[MyCollection] Prices need updating, updating now...');
+        }
         // Silently update prices in the background
         handleUpdateMarketPrices(true);
       }
