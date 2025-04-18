@@ -466,6 +466,12 @@ export default function MyCollection() {
     }
   }, [localCollectionUpdates, activeType, activeGroup, currentCollection, updatePriceInfoStates]);
 
+  // Update price info states
+  const updatePriceInfoStates = useCallback(() => {
+    setLastUpdateTime(getLastUpdateTimeFormatted());
+    setTimeUntilNextUpdate(getTimeUntilNextUpdate());
+  }, []);
+
   // Handle opening the create group modal
   const handleOpenCreateGroupModal = () => {
     setGroupToEdit(null);
@@ -484,11 +490,6 @@ export default function MyCollection() {
     }
   };
 
-  // Update price info states
-  const updatePriceInfoStates = useCallback(() => {
-    setLastUpdateTime(getLastUpdateTimeFormatted());
-    setTimeUntilNextUpdate(getTimeUntilNextUpdate());
-  }, []);
 
   // Track if we've already triggered an auto-update for the current collection
   const [hasAutoUpdated, setHasAutoUpdated] = useState<boolean>(false);
