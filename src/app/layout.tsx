@@ -35,19 +35,18 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-100 dark:bg-gray-900 flex flex-col min-h-screen`}
       >
-        {/* Temporarily removed context providers to debug initialization issues */}
-        {/* <AuthProvider>
-          <CollectionProvider> */}
+        <AuthProvider>
+          <CollectionProvider>
             {/* API Key Verifier runs at startup to check API keys */}
-            {/* <ApiKeyVerifier /> */}
+            <ApiKeyVerifier />
             {/* Temporarily removed ClientWrapper */}
             <Header />
             <main className="flex-grow container mx-auto px-4 py-6 page-container">
               {children}
             </main>
             <MobileNavigation />
-          {/* </CollectionProvider>
-        </AuthProvider> */}
+          </CollectionProvider>
+        </AuthProvider>
       </body>
     </html>
   );
