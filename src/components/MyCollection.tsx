@@ -629,7 +629,7 @@ export default function MyCollection() {
               <div className="bg-gray-100 p-3 rounded text-center">
                 <p className="text-sm text-gray-600">Total Value</p>
                 <p className="text-lg font-bold text-gray-800">${collectionStats.totalValue.toFixed(2)}</p>
-                <p className="text-xs text-gray-600 mt-1">Prices: {isUpdatingPrices ? 'Updating...' : `Last updated: ${lastUpdateTime}`}</p>
+                <p className="text-xs text-gray-600 mt-1">{isUpdatingPrices ? 'Updating prices...' : `Updated: ${lastUpdateTime}`}</p>
               </div>
               <div className="bg-gray-100 p-3 rounded text-center">
                 <p className="text-sm text-gray-600">Recently Added</p>
@@ -644,20 +644,25 @@ export default function MyCollection() {
               </div>
             )}
             <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveType('have')}
-                className={`px-3 py-1.5 text-sm font-medium rounded ${activeType === 'have' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-              >
-                I Have ({collectionCounts.have})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveType('want')}
-                className={`px-3 py-1.5 text-sm font-medium rounded ${activeType === 'want' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-              >
-                I Want ({collectionCounts.want})
-              </button>
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => setActiveType('have')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded ${activeType === 'have' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                >
+                  I Have ({collectionCounts.have})
+                </button>
+                <p className="text-xs text-gray-600 mt-1 text-center">{isUpdatingPrices ? 'Updating prices...' : `Updated: ${lastUpdateTime}`}</p>
+              </div>
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => setActiveType('want')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded ${activeType === 'want' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                >
+                  I Want ({collectionCounts.want})
+                </button>
+              </div>
               <Link href="/explore" className="px-3 py-1.5 text-sm font-medium rounded bg-green-600 text-white hover:bg-green-700">
                 Add Cards
               </Link>

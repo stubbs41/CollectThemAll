@@ -178,7 +178,7 @@ const CardPricing: React.FC<CardPricingProps> = ({ prices }) => {
 
       {lastUpdated && (
         <div className="flex justify-end mt-2">
-          <p className="text-xs text-gray-400">Prices updated: {lastUpdated}</p>
+          <p className="text-xs text-gray-400">Updated: {lastUpdated}</p>
         </div>
       )}
     </div>
