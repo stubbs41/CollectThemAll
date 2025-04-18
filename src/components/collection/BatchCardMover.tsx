@@ -100,10 +100,53 @@ const BatchCardMover: React.FC<BatchCardMoverProps> = ({ onClose, onComplete }) 
         if (!cardItem) continue;
 
         try {
+          // Create a valid PokemonCard object from the collection item
+          // This ensures we have all the required fields for addCardToCollection
+          const cardData = {
+            id: cardId,
+            name: cardItem.card_name || cardItem.card?.name || 'Unknown Card',
+            images: {
+              small: cardItem.card_image_small || cardItem.card?.images?.small || '',
+              large: cardItem.card?.images?.large || ''
+            },
+            // Add other required fields with defaults
+            supertype: cardItem.card?.supertype || 'Pokémon',
+            subtypes: cardItem.card?.subtypes || [],
+            level: cardItem.card?.level || null,
+            hp: cardItem.card?.hp || '',
+            types: cardItem.card?.types || [],
+            evolvesFrom: cardItem.card?.evolvesFrom || null,
+            abilities: cardItem.card?.abilities || [],
+            attacks: cardItem.card?.attacks || [],
+            weaknesses: cardItem.card?.weaknesses || [],
+            resistances: cardItem.card?.resistances || [],
+            retreatCost: cardItem.card?.retreatCost || [],
+            convertedRetreatCost: cardItem.card?.convertedRetreatCost || 0,
+            set: cardItem.card?.set || {
+              id: '',
+              name: 'Unknown Set',
+              series: '',
+              printedTotal: 0,
+              total: 0,
+              legalities: {},
+              releaseDate: '',
+              updatedAt: '',
+              images: { symbol: '', logo: '' }
+            },
+            number: cardItem.card?.number || '',
+            artist: cardItem.card?.artist || '',
+            rarity: cardItem.card?.rarity || '',
+            flavorText: cardItem.card?.flavorText || '',
+            nationalPokedexNumbers: cardItem.card?.nationalPokedexNumbers || [],
+            legalities: cardItem.card?.legalities || {},
+            tcgplayer: cardItem.card?.tcgplayer || null,
+            cardmarket: cardItem.card?.cardmarket || null
+          };
+
           // Add to target collection
           const result = await addCardToCollection(
             cardId,
-            cardItem.card,
+            cardData,
             targetType,
             targetGroup
           );
