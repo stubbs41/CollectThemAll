@@ -7,11 +7,12 @@
     "download-data": "node scripts/download-pokemon-data.js",
     "download-images": "node scripts/download-pokemon-images.js",
     "download-all": "npm run download-data && npm run download-images",
-    "build": "npm run download-data && next build",
+    "build": "npm run download-data && npm run download-missing-card-data && next build",
     "start": "next start",
     "lint": "next lint",
     "export": "npm run download-all && next build",
-    "update-github-data": "ts-node --project tsconfig.json src/scripts/updateGithubData.ts"
+    "update-github-data": "ts-node --project tsconfig.json src/scripts/updateGithubData.ts",
+    "download-missing-card-data": "ts-node --project tsconfig.json src/scripts/downloadMissingCardData.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.1",

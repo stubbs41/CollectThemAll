@@ -82,10 +82,21 @@ export async function fetchCardsForSet(setId: string): Promise<any[]> {
       const response = await fetch(`${CARDS_BASE_URL}/${setId}.json`);
 
       if (response.ok) {
-        const data = await response.json();
-        console.log(`Loaded ${data.length} cards for set ${setId} from local data`);
-        usingLocalData = true;
-        return data;
+        try {
+          const data = await response.json();
+          if (Array.isArray(data) && data.length > 0) {
+            console.log(`Loaded ${data.length} cards for set ${setId} from local data`);
+            usingLocalData = true;
+            return data;
+          } else {
+            console.warn(`Local data file for set ${setId} exists but is empty or invalid. Falling back to GitHub.`);
+          }
+        } catch (jsonError) {
+          console.warn(`Error parsing JSON for set ${setId} from local data:`, jsonError);
+          // Continue to GitHub fallback
+        }
+      } else {
+        console.warn(`Local data file for set ${setId} not found (${response.status}). Falling back to GitHub.`);
       }
     } catch (localError) {
       console.warn(`Error fetching cards for set ${setId} from local data:`, localError);
@@ -96,18 +107,42 @@ export async function fetchCardsForSet(setId: string): Promise<any[]> {
 
     // Fallback to GitHub
     console.log(`Fetching cards data for set ${setId} from GitHub...`);
-    const response = await fetch(`${GITHUB_CARDS_BASE_URL}/${setId}.json`);
+    try {
+      const response = await fetch(`${GITHUB_CARDS_BASE_URL}/${setId}.json`);
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch cards for set ${setId}: ${response.status} ${response.statusText}`);
+      if (response.ok) {
+        try {
+          const data = await response.json();
+          if (Array.isArray(data) && data.length > 0) {
+            console.log(`Loaded ${data.length} cards for set ${setId} from GitHub`);
+
+            // Store the data locally for future use
+            try {
+              storeCardsForSet(setId, data);
+            } catch (storageError) {
+              console.warn(`Could not store cards for set ${setId} in local storage:`, storageError);
+            }
+
+            return data;
+          } else {
+            console.warn(`GitHub data file for set ${setId} exists but is empty or invalid. Falling back to API.`);
+            return []; // Return empty array to allow API fallback
+          }
+        } catch (jsonError) {
+          console.warn(`Error parsing JSON for set ${setId} from GitHub:`, jsonError);
+          return []; // Return empty array to allow API fallback
+        }
+      } else {
+        console.warn(`GitHub data file for set ${setId} not found (${response.status}). Falling back to API.`);
+        return []; // Return empty array to allow API fallback
+      }
+    } catch (githubError) {
+      console.warn(`Error fetching cards for set ${setId} from GitHub:`, githubError);
+      return []; // Return empty array to allow API fallback
     }
-
-    const data = await response.json();
-    console.log(`Loaded ${data.length} cards for set ${setId} from GitHub`);
-    return data;
   } catch (error) {
     console.error(`Error fetching cards for set ${setId}:`, error);
-    throw error;
+    return []; // Return empty array instead of throwing to prevent app crashes
   }
 }
 
