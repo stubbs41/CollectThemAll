@@ -346,43 +346,6 @@ export default function MyCollection() {
   // Track if we've already triggered an auto-update for the current collection
   const [hasAutoUpdated, setHasAutoUpdated] = useState<boolean>(false);
 
-  // Effect to check if prices need to be updated when component mounts
-  useEffect(() => {
-    // Update the price info states
-    updatePriceInfoStates();
-
-    // Set up an interval to update the time until next update
-    const intervalId = setInterval(() => {
-      updatePriceInfoStates();
-    }, 60000); // Update every minute
-
-    return () => clearInterval(intervalId);
-  }, [updatePriceInfoStates]);
-
-  // Separate effect to handle auto price updates
-  useEffect(() => {
-    // Reset the auto-update flag when collection, group or type changes
-    setHasAutoUpdated(false);
-  }, [activeGroup, activeType]);
-
-  // Effect to trigger price updates when needed
-  useEffect(() => {
-    // Only auto-update if we haven't already updated for this collection view
-    // and we have cards to update
-    if (session && !isUpdatingPrices && currentCollection.length > 0 && !hasAutoUpdated) {
-      // Auto-update prices when viewing collections
-      handleUpdateMarketPrices(true);
-      setHasAutoUpdated(true);
-    }
-  }, [session, isUpdatingPrices, currentCollection, hasAutoUpdated, handleUpdateMarketPrices]);
-
-  // Effect to prefetch card data when filtered collection changes
-  useEffect(() => {
-    if (filteredAndSortedCollection.length > 0) {
-      prefetchVisibleCards(filteredAndSortedCollection);
-    }
-  }, [filteredAndSortedCollection, prefetchVisibleCards]);
-
   // Handle updating market prices
   const handleUpdateMarketPrices = useCallback(async (isAutoUpdate = false) => {
     if (isUpdatingPrices) return;
@@ -425,6 +388,43 @@ export default function MyCollection() {
       setIsUpdatingPrices(false);
     }
   }, [activeGroup, refreshCollections, updatePriceInfoStates, updatePriceTimestamp, setHasAutoUpdated]);
+
+  // Effect to check if prices need to be updated when component mounts
+  useEffect(() => {
+    // Update the price info states
+    updatePriceInfoStates();
+
+    // Set up an interval to update the time until next update
+    const intervalId = setInterval(() => {
+      updatePriceInfoStates();
+    }, 60000); // Update every minute
+
+    return () => clearInterval(intervalId);
+  }, [updatePriceInfoStates]);
+
+  // Separate effect to handle auto price updates
+  useEffect(() => {
+    // Reset the auto-update flag when collection, group or type changes
+    setHasAutoUpdated(false);
+  }, [activeGroup, activeType]);
+
+  // Effect to trigger price updates when needed
+  useEffect(() => {
+    // Only auto-update if we haven't already updated for this collection view
+    // and we have cards to update
+    if (session && !isUpdatingPrices && currentCollection.length > 0 && !hasAutoUpdated) {
+      // Auto-update prices when viewing collections
+      handleUpdateMarketPrices(true);
+      setHasAutoUpdated(true);
+    }
+  }, [session, isUpdatingPrices, currentCollection, hasAutoUpdated, handleUpdateMarketPrices]);
+
+  // Effect to prefetch card data when filtered collection changes
+  useEffect(() => {
+    if (filteredAndSortedCollection.length > 0) {
+      prefetchVisibleCards(filteredAndSortedCollection);
+    }
+  }, [filteredAndSortedCollection, prefetchVisibleCards]);
 
   // Render logic
   if (authLoading) {
