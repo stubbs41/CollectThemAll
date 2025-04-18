@@ -285,7 +285,7 @@ export default function MyCollection() {
           // Store this price in both caches for maximum persistence
           storeCardPrice(item.card_id, bestPrice);
           // Only log in development mode and only for debugging
-          if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+          if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
             console.log(`[MyCollection] Using robust cached price ${bestPrice} for card ${item.card_id}`);
           }
         } else {
@@ -296,7 +296,7 @@ export default function MyCollection() {
             // Store in robust cache for future use
             storePrice(item.card_id, fallbackPrice);
             // Only log in development mode and only for debugging
-            if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+            if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
               console.log(`[MyCollection] Using fallback price ${fallbackPrice} for card ${item.card_id}`);
             }
           } else if (updatedItem.market_price > 0) {
@@ -304,7 +304,7 @@ export default function MyCollection() {
             storeCardPrice(item.card_id, updatedItem.market_price);
             storePrice(item.card_id, updatedItem.market_price);
             // Only log in development mode and only for debugging
-            if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+            if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
               console.log(`[MyCollection] Using database price ${updatedItem.market_price} for card ${item.card_id}`);
             }
           }
@@ -613,7 +613,7 @@ export default function MyCollection() {
                   storeCardPrice(item.card_id, updatedPrice);
                   storePrice(item.card_id, updatedPrice);
                   // Only log in development mode and only for debugging
-                  if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+                  if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
                     console.log(`[MyCollection] Updated price for ${item.card_id} to ${updatedPrice}`);
                   }
                 }
@@ -650,7 +650,7 @@ export default function MyCollection() {
     // Check immediately if prices need to be updated
     if (shouldUpdatePrices() && !isUpdatingPrices) {
       // Only log in development mode and only for debugging
-      if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+      if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
         console.log('[MyCollection] Prices need updating on mount, updating now...');
       }
       // Silently update prices in the background
@@ -664,7 +664,7 @@ export default function MyCollection() {
       // Check if prices need to be updated based on cache duration
       if (shouldUpdatePrices() && !isUpdatingPrices) {
         // Only log in development mode and only for debugging
-        if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+        if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
           console.log('[MyCollection] Prices need updating, updating now...');
         }
         // Silently update prices in the background

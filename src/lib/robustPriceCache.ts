@@ -52,7 +52,7 @@ export function storePrice(cardId: string, price: number | null | undefined): vo
   saveToLocalStorage();
 
   // Only log in development mode and only for debugging
-  if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+  if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
     console.log(`[RobustPriceCache] Stored price ${price} for card ${cardId}`);
   }
 }
@@ -107,7 +107,7 @@ export function getBestPrice(cardId: string, currentPrice?: number | null): numb
   if (currentPrice !== undefined && currentPrice !== null && currentPrice > 0) {
     storePrice(cardId, currentPrice);
     // Only log in development mode and only for debugging
-    if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
       console.log(`[RobustPriceCache] Using current price ${currentPrice} for card ${cardId}`);
     }
     return currentPrice;
@@ -117,7 +117,7 @@ export function getBestPrice(cardId: string, currentPrice?: number | null): numb
   const cachedPrice = getPrice(cardId);
   if (cachedPrice !== undefined) {
     // Only log in development mode and only for debugging
-    if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
       console.log(`[RobustPriceCache] Using cached price ${cachedPrice} for card ${cardId}`);
     }
     return cachedPrice;
@@ -125,7 +125,7 @@ export function getBestPrice(cardId: string, currentPrice?: number | null): numb
 
   // Default to 0 if no price is available
   // Only log in development mode and only for debugging
-  if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+  if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
     console.log(`[RobustPriceCache] No price found for card ${cardId}, returning 0`);
   }
   return 0;

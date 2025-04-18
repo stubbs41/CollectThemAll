@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
 
     for (const [cardId, price] of priceMap.entries()) {
       // Log the price update for debugging (only in development)
-      if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+      if (process.env.DEBUG_PRICES === 'true') {
         console.log(`[API] Updating price for card ${cardId} to ${price}`);
       }
 
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
           if (!error) {
             updatedCount++;
             // Only log in development mode and only for debugging
-            if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+            if (process.env.DEBUG_PRICES === 'true') {
               console.log(`[API] Successfully updated price for card ${cardId} to ${price}`);
             }
           } else {
