@@ -137,17 +137,27 @@ export default function MyCollection() {
   const collectionStats = useMemo(() => {
     // Apply local updates to the collection for accurate stats
     const updatedCollection = currentCollection.map(item => {
-      // Check if we have a local update for this card
+      let updatedItem = { ...item };
+
+      // Check if we have a quantity update for this card
       if (localCollectionUpdates.has(item.card_id)) {
         const updatedQuantity = localCollectionUpdates.get(item.card_id);
         // If quantity is 0, we'll filter it out later
         if (updatedQuantity === 0) {
-          return item;
+          return updatedItem;
         }
         // Otherwise update the quantity
-        return { ...item, quantity: updatedQuantity! };
+        updatedItem.quantity = updatedQuantity!;
       }
-      return item;
+
+      // Check if we have a price update for this card
+      const priceKey = `price_${item.card_id}`;
+      if (localCollectionUpdates.has(priceKey)) {
+        const updatedPrice = localCollectionUpdates.get(priceKey);
+        updatedItem.market_price = updatedPrice as number;
+      }
+
+      return updatedItem;
     }).filter(item => {
       // Filter out cards with quantity 0 (marked for removal)
       return !localCollectionUpdates.has(item.card_id) || localCollectionUpdates.get(item.card_id)! > 0;
@@ -234,17 +244,27 @@ export default function MyCollection() {
   const filteredAndSortedCollection = useMemo(() => {
     // First apply local updates to the collection
     let result = currentCollection.map(item => {
-      // Check if we have a local update for this card
+      let updatedItem = { ...item };
+
+      // Check if we have a quantity update for this card
       if (localCollectionUpdates.has(item.card_id)) {
         const updatedQuantity = localCollectionUpdates.get(item.card_id);
         // If quantity is 0, we'll filter it out later
         if (updatedQuantity === 0) {
-          return item;
+          return updatedItem;
         }
         // Otherwise update the quantity
-        return { ...item, quantity: updatedQuantity! };
+        updatedItem.quantity = updatedQuantity!;
       }
-      return item;
+
+      // Check if we have a price update for this card
+      const priceKey = `price_${item.card_id}`;
+      if (localCollectionUpdates.has(priceKey)) {
+        const updatedPrice = localCollectionUpdates.get(priceKey);
+        updatedItem.market_price = updatedPrice as number;
+      }
+
+      return updatedItem;
     });
 
     // Filter out cards with quantity 0 (marked for removal)
@@ -371,7 +391,7 @@ export default function MyCollection() {
   }, [currentCollection, activeFilter, sortBy, filteredByAdvanced, advancedFilterCriteria, advancedSortBy, localCollectionUpdates]);
 
   // Function to handle quantity changes
-  const handleQuantityChange = useCallback((cardId: string, newQuantity: number) => {
+  const handleQuantityChange = useCallback(async (cardId: string, newQuantity: number) => {
     // Update the local collection updates map immediately for UI updates
     const newUpdates = new Map(localCollectionUpdates);
     if (newQuantity === 0) {
@@ -383,30 +403,33 @@ export default function MyCollection() {
     }
     setLocalCollectionUpdates(newUpdates);
 
-    // Schedule a background refresh to sync with the server
-    // Use a debounce mechanism to avoid too many refreshes
-    const timeSinceLastRefresh = Date.now() - lastRefreshTime;
+    // Update the database in the background without refreshing the page
+    try {
+      const response = await fetch('/api/collections/update-quantity', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          cardId,
+          collectionType: activeType,
+          groupName: activeGroup,
+          quantity: newQuantity
+        }),
+      });
 
-    // If it's been more than 5 seconds since the last refresh, do it now
-    if (timeSinceLastRefresh > 5000) {
-      // Do a silent refresh in the background
-      setTimeout(() => {
-        refreshCollections();
-        setLastRefreshTime(Date.now());
-        // Clear the local updates after refresh to avoid double-counting
-        setLocalCollectionUpdates(new Map());
-      }, 500); // Small delay to ensure UI updates first
-    } else {
-      // Otherwise, schedule a refresh for later
-      clearTimeout(window.quantityUpdateTimer);
-      window.quantityUpdateTimer = setTimeout(() => {
-        refreshCollections();
-        setLastRefreshTime(Date.now());
-        // Clear the local updates after refresh to avoid double-counting
-        setLocalCollectionUpdates(new Map());
-      }, 5000); // Wait 5 seconds after the last quantity change
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error updating quantity:', errorData.error);
+      }
+
+      // No need to refresh the entire collection
+      // The UI is already updated with localCollectionUpdates
+      setLastRefreshTime(Date.now());
+    } catch (error) {
+      console.error('Error updating quantity:', error);
     }
-  }, [localCollectionUpdates, refreshCollections, lastRefreshTime]);
+  }, [localCollectionUpdates, activeType, activeGroup]);
 
   // Handle opening the create group modal
   const handleOpenCreateGroupModal = () => {
@@ -470,9 +493,41 @@ export default function MyCollection() {
       updatePriceTimestamp();
       updatePriceInfoStates();
 
-      // Refresh collections to show updated prices, but don't trigger another auto-update
-      setHasAutoUpdated(true); // Set this before refreshing to prevent loop
-      await refreshCollections();
+      // Instead of refreshing the entire collection, update the prices in the current collection
+      // This avoids a full page refresh
+      setHasAutoUpdated(true); // Set this to prevent loop
+
+      // Update the prices in the current collection without refreshing
+      // We'll fetch just the updated prices and apply them to our local state
+      try {
+        const pricesResponse = await fetch(`/api/collections?groupName=${encodeURIComponent(activeGroup)}`);
+        if (pricesResponse.ok) {
+          const pricesData = await pricesResponse.json();
+          if (pricesData.collection) {
+            // Create a map of card ID to market price
+            const priceMap = new Map();
+            pricesData.collection.forEach((item: any) => {
+              priceMap.set(item.card_id, item.market_price || 0);
+            });
+
+            // Update the local collection with new prices
+            const newUpdates = new Map(localCollectionUpdates);
+            currentCollection.forEach(item => {
+              if (priceMap.has(item.card_id)) {
+                const updatedPrice = priceMap.get(item.card_id);
+                if (updatedPrice !== item.market_price) {
+                  // Store the updated price in our local updates
+                  // We'll use a special key format to distinguish price updates from quantity updates
+                  newUpdates.set(`price_${item.card_id}`, updatedPrice);
+                }
+              }
+            });
+            setLocalCollectionUpdates(newUpdates);
+          }
+        }
+      } catch (priceErr) {
+        console.error('Error updating local prices:', priceErr);
+      }
     } catch (err) {
       console.error('Error updating market prices:', err);
 
@@ -488,7 +543,7 @@ export default function MyCollection() {
     } finally {
       setIsUpdatingPrices(false);
     }
-  }, [activeGroup, refreshCollections, updatePriceInfoStates, updatePriceTimestamp, setHasAutoUpdated]);
+  }, [activeGroup, updatePriceInfoStates, updatePriceTimestamp, setHasAutoUpdated, localCollectionUpdates, currentCollection]);
 
   // Effect to check if prices need to be updated when component mounts
   useEffect(() => {
