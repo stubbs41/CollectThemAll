@@ -39,13 +39,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Track if this is after an auth redirect
   const isAuthRedirect = React.useRef(false);
-  
+
   // Check if the current URL has auth_timestamp, indicating we just redirected from auth
   const handleSearchParams = (searchParams: URLSearchParams) => {
     const authTimestamp = searchParams.get('auth_timestamp');
     if (authTimestamp) {
       isAuthRedirect.current = true;
-      
+
       // Remove the timestamp parameter from URL to clean it up
       // We'll use setTimeout to ensure this happens after other code has run
       setTimeout(() => {
@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const url = new URL(window.location.href);
           url.searchParams.delete('auth_timestamp');
           window.history.replaceState({}, '', url.toString());
-          
+
           // Clear the stored redirect path since we've completed the redirect
           localStorage.removeItem(REDIRECT_PATH_KEY);
         }
@@ -94,12 +94,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         notification.style.borderRadius = '4px';
         notification.style.zIndex = '1000';
         document.body.appendChild(notification);
-        
+
         setTimeout(() => {
           document.body.removeChild(notification);
         }, 3000);
       }
-      
+
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
       setUser(data.session?.user || null);
@@ -114,24 +114,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Initial session check and auth listener
   useEffect(() => {
     setIsLoading(true);
-    
+
+    // Add a flag to track if we've completed the initial auth check
+    let initialAuthCheckComplete = false;
+
     // Get initial session
     const initializeAuth = async () => {
       try {
         console.log('Initializing auth state...');
-        
+
         // If we just redirected from auth, we need to make sure we get the latest session
         if (isAuthRedirect.current) {
           console.log('Auth redirect detected, refreshing session immediately');
           // Add a small delay to ensure cookies are fully set
           await new Promise(resolve => setTimeout(resolve, 200));
         }
-        
+
         const { data } = await supabase.auth.getSession();
         setSession(data.session);
         setUser(data.session?.user || null);
         console.log('Initial session:', data.session ? 'Found' : 'Not found');
-        
+
         // If we were expecting a session after redirect but didn't get one, refresh again
         if (isAuthRedirect.current && !data.session) {
           console.log('No session found after auth redirect, trying again...');
@@ -140,6 +143,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (!refreshData?.session) {
             console.log('Still no session after second attempt');
           }
+        }
+
+        // Mark initial auth check as complete
+        initialAuthCheckComplete = true;
+
+        // Dispatch an event to notify other components that auth is ready
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth-ready', { detail: { session: data.session } }));
         }
       } catch (error) {
         console.error('Error getting initial session:', error);
@@ -158,6 +169,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user || null);
         setIsLoading(false);
+
+        // Dispatch an event to notify other components that auth state has changed
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth-state-change', {
+            detail: {
+              event,
+              session
+            }
+          }));
+        }
       }
     );
 
@@ -207,4 +228,4 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}; 
+};

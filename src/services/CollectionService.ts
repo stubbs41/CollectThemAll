@@ -58,8 +58,8 @@ export default class CollectionService {
     lastFetched: null
   };
 
-  // Cache expiration time in milliseconds (5 minutes)
-  private CACHE_EXPIRATION = 5 * 60 * 1000;
+  // Cache expiration time in milliseconds (10 minutes)
+  private CACHE_EXPIRATION = 10 * 60 * 1000;
 
   // Get collection groups
   getCollectionGroups(): string[] {

@@ -683,13 +683,33 @@ export default function MyCollection() {
 
   // Effect to trigger price updates when needed
   useEffect(() => {
-    // Only auto-update if we haven't already updated for this collection view
-    // and we have cards to update
+    const handleAuthReady = (event: CustomEvent) => {
+      const { session } = event.detail;
+      if (session && !isUpdatingPrices && currentCollection.length > 0 && !hasAutoUpdated) {
+        // Auto-update prices when viewing collections after auth is ready
+        handleUpdateMarketPrices(true);
+        setHasAutoUpdated(true);
+      }
+    };
+
+    // Add event listener for auth-ready
+    if (typeof window !== 'undefined') {
+      window.addEventListener('auth-ready', handleAuthReady as EventListener);
+    }
+
+    // Initial check
     if (session && !isUpdatingPrices && currentCollection.length > 0 && !hasAutoUpdated) {
       // Auto-update prices when viewing collections
       handleUpdateMarketPrices(true);
       setHasAutoUpdated(true);
     }
+
+    // Clean up event listener
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('auth-ready', handleAuthReady as EventListener);
+      }
+    };
   }, [session, isUpdatingPrices, currentCollection, hasAutoUpdated, handleUpdateMarketPrices]);
 
   // Effect to prefetch card data when filtered collection changes

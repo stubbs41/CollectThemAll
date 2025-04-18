@@ -73,98 +73,132 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   // Create a singleton instance of the CollectionService
   const collectionService = React.useMemo(() => new CollectionService(), []);
 
-  // Load collections when auth state changes
-  useEffect(() => {
-    const loadCollections = async () => {
-      setIsLoading(true);
+  // Function to load collections
+  const loadCollections = useCallback(async () => {
+    setIsLoading(true);
 
-      try {
-        // Fetch collection groups
-        const groups = await collectionService.fetchCollectionGroups();
-        setCollectionGroups(groups);
+    try {
+      // Fetch collection groups
+      const groups = await collectionService.fetchCollectionGroups();
+      setCollectionGroups(groups);
 
-        // Fetch collections using the updated CollectionService API
-        const groupsMap = await collectionService.fetchCollections();
+      // Fetch collections using the updated CollectionService API
+      const groupsMap = await collectionService.fetchCollections();
 
-        // Convert the hierarchical structure to a flat array of collections
-        const allCollections: Collection[] = [];
-        const groupNames: string[] = [];
+      // Convert the hierarchical structure to a flat array of collections
+      const allCollections: Collection[] = [];
+      const groupNames: string[] = [];
 
-        // Process each group
-        groupsMap.forEach((groupData, groupName) => {
-          groupNames.push(groupName);
+      // Process each group
+      groupsMap.forEach((groupData, groupName) => {
+        groupNames.push(groupName);
 
-          // Find group value
-          const groupInfo = groups.find(g => g.name === groupName);
-          const haveValue = groupInfo?.have_value || 0;
-          const wantValue = groupInfo?.want_value || 0;
+        // Find group value
+        const groupInfo = groups.find(g => g.name === groupName);
+        const haveValue = groupInfo?.have_value || 0;
+        const wantValue = groupInfo?.want_value || 0;
 
-          // Apply price persistence to the cards before adding to collections
-          // Convert Map to array, apply price persistence, then convert back to Map
-          const haveCards = new Map();
-          Array.from(groupData.have.entries()).forEach(([cardId, card]) => {
-            // Apply price persistence
-            const bestPrice = getBestPrice(cardId, card.market_price);
-            if (bestPrice > 0) {
-              card.market_price = bestPrice;
-            }
-            // Store the price for future use
-            if (card.market_price && card.market_price > 0) {
-              storePrice(cardId, card.market_price);
-            }
-            haveCards.set(cardId, card);
-          });
-
-          const wantCards = new Map();
-          Array.from(groupData.want.entries()).forEach(([cardId, card]) => {
-            // Apply price persistence
-            const bestPrice = getBestPrice(cardId, card.market_price);
-            if (bestPrice > 0) {
-              card.market_price = bestPrice;
-            }
-            // Store the price for future use
-            if (card.market_price && card.market_price > 0) {
-              storePrice(cardId, card.market_price);
-            }
-            wantCards.set(cardId, card);
-          });
-
-          // Add "have" collection for this group
-          allCollections.push({
-            id: `${groupName}-have`,
-            name: 'My Collection',
-            groupName: groupName,
-            type: 'have',
-            cards: haveCards,
-            value: haveValue
-          });
-
-          // Add "want" collection for this group
-          allCollections.push({
-            id: `${groupName}-want`,
-            name: 'Wishlist',
-            groupName: groupName,
-            type: 'want',
-            cards: wantCards,
-            value: wantValue
-          });
+        // Apply price persistence to the cards before adding to collections
+        // Convert Map to array, apply price persistence, then convert back to Map
+        const haveCards = new Map();
+        Array.from(groupData.have.entries()).forEach(([cardId, card]) => {
+          // Apply price persistence
+          const bestPrice = getBestPrice(cardId, card.market_price);
+          if (bestPrice > 0) {
+            card.market_price = bestPrice;
+          }
+          // Store the price for future use
+          if (card.market_price && card.market_price > 0) {
+            storePrice(cardId, card.market_price);
+          }
+          haveCards.set(cardId, card);
         });
 
-        setCollections(allCollections);
-        setGroups(groupNames);
+        const wantCards = new Map();
+        Array.from(groupData.want.entries()).forEach(([cardId, card]) => {
+          // Apply price persistence
+          const bestPrice = getBestPrice(cardId, card.market_price);
+          if (bestPrice > 0) {
+            card.market_price = bestPrice;
+          }
+          // Store the price for future use
+          if (card.market_price && card.market_price > 0) {
+            storePrice(cardId, card.market_price);
+          }
+          wantCards.set(cardId, card);
+        });
 
-        // Update collection values
-        await collectionService.updateCollectionValues();
-      } catch (error) {
-        console.error('Error loading collections:', error);
+        // Add "have" collection for this group
+        allCollections.push({
+          id: `${groupName}-have`,
+          name: 'My Collection',
+          groupName: groupName,
+          type: 'have',
+          cards: haveCards,
+          value: haveValue
+        });
+
+        // Add "want" collection for this group
+        allCollections.push({
+          id: `${groupName}-want`,
+          name: 'Wishlist',
+          groupName: groupName,
+          type: 'want',
+          cards: wantCards,
+          value: wantValue
+        });
+      });
+
+      setCollections(allCollections);
+      setGroups(groupNames);
+
+      // Update collection values
+      await collectionService.updateCollectionValues();
+    } catch (error) {
+      console.error('Error loading collections:', error);
+      setCollections([]);
+      setGroups([]);
+      setCollectionGroups([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [collectionService]);
+
+  // Listen for auth events
+  useEffect(() => {
+    const handleAuthReady = (event: CustomEvent) => {
+      const { session } = event.detail;
+      if (session) {
+        loadCollections();
+      } else {
+        // No session, empty collections
         setCollections([]);
         setGroups([]);
         setCollectionGroups([]);
-      } finally {
         setIsLoading(false);
       }
     };
 
+    const handleAuthStateChange = (event: CustomEvent) => {
+      const { session } = event.detail;
+      if (session) {
+        loadCollections();
+      } else {
+        // No session, empty collections
+        setCollections([]);
+        setGroups([]);
+        setCollectionGroups([]);
+        setIsLoading(false);
+      }
+    };
+
+    // Add event listeners
+    if (typeof window !== 'undefined') {
+      window.addEventListener('auth-ready', handleAuthReady as EventListener);
+      window.addEventListener('auth-state-change', handleAuthStateChange as EventListener);
+    }
+
+    // Initial load based on session
     if (session) {
       loadCollections();
     } else {
@@ -174,7 +208,15 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
       setCollectionGroups([]);
       setIsLoading(false);
     }
-  }, [session, collectionService]);
+
+    // Clean up event listeners
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('auth-ready', handleAuthReady as EventListener);
+        window.removeEventListener('auth-state-change', handleAuthStateChange as EventListener);
+      }
+    };
+  }, [session, loadCollections]);
 
   // Refresh collections function
   const refreshCollections = useCallback(async () => {
