@@ -122,7 +122,7 @@ const CollectionGroupSelector: React.FC<CollectionGroupSelectorProps> = ({ onCre
             )}
           </div>
 
-          {activeGroupInfo?.description && (
+          {activeGroupInfo?.description && activeGroupInfo.name !== 'Default' && (
             <div className="mt-2 text-sm text-gray-500 italic">
               {activeGroupInfo.description}
             </div>
