@@ -8,7 +8,7 @@ import { PokemonCard } from '@/lib/types';
 import SimpleCardDetailModal from './SimpleCardDetailModal';
 import { formatPrice, getMarketPrice, getBestAvailablePrice, getProxiedImageUrl } from '@/lib/utils';
 import { applyPricesToCards } from '@/lib/priceCache';
-import { getCardPriceWithFallback, storeCardPrice } from '@/lib/pricePersistence';
+import { getCardPriceWithFallback, storeCardPrice, getCardPrice } from '@/lib/pricePersistence';
 import { useCollections } from '@/context/CollectionContext';
 import { useAuth } from '@/context/AuthContext';
 import { fetchCardDetails } from '@/lib/pokemonApi'; // Import for prefetching
@@ -232,9 +232,17 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                      {(() => {
                                          // Try to get the best price from the card data
                                          const bestPrice = card ? getBestAvailablePrice(card.tcgplayer?.prices) : null;
-                                         // If no price is available, try to get it from our global cache
-                                         const finalPrice = card && (bestPrice === null || bestPrice === 0) ?
-                                             getCardPriceWithFallback(card.id, bestPrice) : bestPrice;
+
+                                         // Always try to get the price from our global cache first
+                                         // This ensures we use the most persistent price available
+                                         const cachedPrice = card ? getCardPrice(card.id) : null;
+
+                                         // Use the cached price if available, otherwise use the best price from the card
+                                         const finalPrice = cachedPrice !== undefined && cachedPrice > 0 ?
+                                             cachedPrice :
+                                             (card && (bestPrice === null || bestPrice === 0) ?
+                                                 getCardPriceWithFallback(card.id, bestPrice) : bestPrice);
+
                                          const isMarketPrice = card && getMarketPrice(card.tcgplayer?.prices) === finalPrice;
 
                                          // Store the price in our global cache if it's valid

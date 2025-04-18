@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CardPrices, PriceData } from '@/lib/types';
 import { formatPrice } from '@/lib/utils';
-import { storeCardPrice } from '@/lib/pricePersistence';
+import { storeCardPrice, getCardPrice, getCardPriceWithFallback } from '@/lib/pricePersistence';
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, CurrencyDollarIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 
 interface CardPricingProps {
@@ -11,6 +11,24 @@ interface CardPricingProps {
 
 // Helper function to get the most relevant price data
 const getDisplayPrices = (prices: CardPrices | undefined | null, cardId?: string): PriceData | null => {
+  // If we have a card ID, try to get the price from our global cache first
+  let cachedMarketPrice: number | undefined;
+  if (cardId) {
+    cachedMarketPrice = getCardPrice(cardId);
+  }
+
+  // If we have a valid cached price, create a price data object with it
+  if (cachedMarketPrice !== undefined && cachedMarketPrice > 0) {
+    return {
+      market: cachedMarketPrice,
+      low: null,
+      mid: null,
+      high: null,
+      directLow: null
+    };
+  }
+
+  // If no cached price or no card ID, proceed with normal logic
   if (!prices) return null;
 
   // Find the first available price data with a market price
@@ -26,6 +44,19 @@ const getDisplayPrices = (prices: CardPrices | undefined | null, cardId?: string
   // Store the price in our global cache if it's valid and we have a card ID
   if (priceData?.market && cardId) {
     storeCardPrice(cardId, priceData.market);
+  } else if (cardId) {
+    // If we don't have a valid price from the API, try to get it from our fallback cache
+    const fallbackPrice = getCardPriceWithFallback(cardId, priceData?.market || null);
+    if (fallbackPrice > 0) {
+      // If we have a valid fallback price, create a price data object with it
+      return {
+        market: fallbackPrice,
+        low: null,
+        mid: null,
+        high: null,
+        directLow: null
+      };
+    }
   }
 
   return priceData;

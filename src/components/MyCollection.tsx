@@ -249,8 +249,11 @@ export default function MyCollection() {
 
   // Apply sorting and filtering to the collection
   const filteredAndSortedCollection = useMemo(() => {
-    // First apply local updates to the collection
-    let result = currentCollection.map(item => {
+    // First apply price persistence to ensure all cards have valid prices from the start
+    let result = applyPricesToCollection(currentCollection);
+
+    // Then apply local updates to the collection
+    result = result.map(item => {
       let updatedItem = { ...item };
 
       // Check if we have a quantity update for this card
