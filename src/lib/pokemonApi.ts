@@ -366,8 +366,61 @@ export async function fetchCardsBySet(setId: string): Promise<PokemonCard[]> {
   }
 }
 
+// Cache for card details to avoid redundant fetches
+const cardDetailsCache = new Map<string, {card: PokemonCard, timestamp: number}>();
+const CARD_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Function to fetch pricing data in the background without blocking the UI
+async function fetchPricingDataInBackground(cardId: string, card: PokemonCard): Promise<void> {
+  try {
+    // Use setTimeout to push this to the next event loop cycle
+    setTimeout(async () => {
+      try {
+        const pricingResponse = await fetch(`${apiBaseUrl}/card-pricing?cardId=${encodeURIComponent(cardId)}`);
+
+        if (pricingResponse.ok) {
+          const pricingData = await pricingResponse.json();
+
+          if (pricingData.tcgplayer) {
+            // Update the card's pricing data
+            card.tcgplayer = pricingData.tcgplayer;
+
+            // Also update the cached version
+            const cachedData = cardDetailsCache.get(cardId);
+            if (cachedData) {
+              cachedData.card.tcgplayer = pricingData.tcgplayer;
+            }
+          }
+        }
+      } catch (error) {
+        // Silently fail for background updates
+        console.debug(`Background pricing update failed for ${cardId}:`, error);
+      }
+    }, 100);
+  } catch (error) {
+    // Catch any synchronous errors
+    console.debug(`Error setting up background pricing fetch for ${cardId}:`, error);
+  }
+}
+
 // --- fetchCardDetails - Updated to use local data first, then server-side API route ---
 export async function fetchCardDetails(cardId: string, forceRefreshPricing: boolean = false): Promise<PokemonCard | null> {
+  // Check cache first (unless force refresh is requested)
+  const now = Date.now();
+  const cachedData = cardDetailsCache.get(cardId);
+
+  if (cachedData && !forceRefreshPricing && (now - cachedData.timestamp < CARD_CACHE_TTL)) {
+    // Use cached card data but still fetch pricing in the background if needed
+    const card = {...cachedData.card}; // Create a copy to avoid modifying the cached version
+
+    // Fetch pricing in the background if we're not forcing a refresh
+    if (!forceRefreshPricing) {
+      fetchPricingDataInBackground(cardId, card);
+    }
+
+    return card;
+  }
+
   console.log(`Fetching details for card ID: ${cardId}${forceRefreshPricing ? ' with forced price refresh' : ''}`);
 
   try {
@@ -406,6 +459,9 @@ export async function fetchCardDetails(cardId: string, forceRefreshPricing: bool
           console.warn(`Could not fetch pricing data for ${cardId}:`, pricingError);
           // Continue with existing pricing data or without pricing data
         }
+
+        // Cache the card data
+        cardDetailsCache.set(cardId, {card: pokemonCard, timestamp: Date.now()});
 
         return pokemonCard;
       }

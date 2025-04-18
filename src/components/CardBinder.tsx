@@ -1,14 +1,15 @@
 // src/components/CardBinder.tsx
 'use client'; // Add this back for client-side interactivity
 
-import React, { useState } from 'react'; // Only import what's actually used
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { PokemonCard } from '@/lib/types'; // Removed CardPrices import
-import SimpleCardDetailModal from './SimpleCardDetailModal'; // Import the simplified modal component
-import { formatPrice, getMarketPrice, getBestAvailablePrice, getProxiedImageUrl } from '@/lib/utils'; // Import from utils
-import { useCollections } from '@/context/CollectionContext'; // Import context hook
-import { useAuth } from '@/context/AuthContext'; // Import auth context
+import { PokemonCard } from '@/lib/types';
+import SimpleCardDetailModal from './SimpleCardDetailModal';
+import { formatPrice, getMarketPrice, getBestAvailablePrice, getProxiedImageUrl } from '@/lib/utils';
+import { useCollections } from '@/context/CollectionContext';
+import { useAuth } from '@/context/AuthContext';
+import { fetchCardDetails } from '@/lib/pokemonApi'; // Import for prefetching
 
 interface CardBinderProps {
   cards: PokemonCard[]; // Cards for the current page
@@ -45,9 +46,37 @@ const CardBinder: React.FC<CardBinderProps> = ({
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
+  // Prefetch visible cards to improve performance
+  const prefetchVisibleCards = useCallback(() => {
+    // Only prefetch if we have cards
+    if (cards.length === 0) return;
+
+    // Prefetch the first 8 cards on the current page (most likely to be clicked)
+    const cardsToFetch = cards.slice(0, 8);
+
+    // Use setTimeout to avoid blocking the UI
+    setTimeout(() => {
+      cardsToFetch.forEach(card => {
+        if (card && card.id) {
+          // Fetch card details without forcing price refresh
+          fetchCardDetails(card.id, false).catch(err => {
+            // Silently fail for prefetching
+            console.debug(`Failed to prefetch card ${card.id}:`, err);
+          });
+        }
+      });
+    }, 500); // Delay prefetching to prioritize visible content
+  }, [cards]);
+
+  // Prefetch cards when the component mounts or cards change
+  useEffect(() => {
+    prefetchVisibleCards();
+  }, [prefetchVisibleCards]);
+
   const handleCardClick = (cardId: string) => {
     setSelectedCardId(cardId);
   };
+
   const handleCloseModal = () => {
     setSelectedCardId(null);
   };

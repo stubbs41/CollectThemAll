@@ -58,13 +58,19 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
     const loadCardData = async () => {
       setIsLoading(true);
       setError(null);
-      setCard(null);
-      setPrints([]);
+
+      // Don't clear card data immediately to avoid flickering
+      // Only clear if we don't have a card yet
+      if (!card) {
+        setCard(null);
+        setPrints([]);
+      }
 
       try {
-        // Fetch card details for the currently selected print with fresh pricing
+        // Fetch card details for the currently selected print
+        // Only force refresh pricing if this is the initial load
         console.log(`Loading card data for ID: ${selectedPrintId}`);
-        const fetchedInitialDetails = await fetchCardDetails(selectedPrintId, true);
+        const fetchedInitialDetails = await fetchCardDetails(selectedPrintId, !card);
 
         if (!fetchedInitialDetails) {
           throw new Error(`Card details not found for ID: ${selectedPrintId}`);
@@ -74,6 +80,13 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
 
         // Safely set the card data
         setCard(fetchedInitialDetails);
+
+        // If we already have prints and we're just switching between them,
+        // don't refetch the prints list
+        if (prints.length > 0 && prints.some(p => p.name === fetchedInitialDetails.name)) {
+          setIsLoading(false);
+          return;
+        }
 
         // Fetch prints if we have a card name
         let fetchedPrints: PokemonCard[] = [];

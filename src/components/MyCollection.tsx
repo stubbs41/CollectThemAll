@@ -19,6 +19,7 @@ import { CollectionType } from '@/services/CollectionService';
 import { shouldUpdatePrices, updatePriceTimestamp, getLastUpdateTimeFormatted, getTimeUntilNextUpdate } from '@/lib/priceUtils';
 import { PokemonCard } from '@/lib/types';
 import SimpleCardDetailModal from '@/components/SimpleCardDetailModal';
+import { fetchCardDetails } from '@/lib/pokemonApi';
 
 // Define a type for the collection items we expect from the API
 interface CollectionItem {
@@ -52,6 +53,27 @@ export default function MyCollection() {
 
   // State for card detail modal
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+
+  // Function to prefetch card data for visible cards
+  const prefetchVisibleCards = useCallback((cards: CollectionItem[]) => {
+    if (cards.length === 0) return;
+
+    // Prefetch the first 8 cards (most likely to be clicked)
+    const cardsToFetch = cards.slice(0, 8);
+
+    // Use setTimeout to avoid blocking the UI
+    setTimeout(() => {
+      cardsToFetch.forEach(item => {
+        if (item && item.card_id) {
+          // Fetch card details without forcing price refresh
+          fetchCardDetails(item.card_id, false).catch(err => {
+            // Silently fail for prefetching
+            console.debug(`Failed to prefetch card ${item.card_id}:`, err);
+          });
+        }
+      });
+    }, 500); // Delay prefetching to prioritize visible content
+  }, []);
 
   const pathname = usePathname();
   const [activeType, setActiveType] = useState<CollectionType>('have');
@@ -339,6 +361,13 @@ export default function MyCollection() {
 
     return () => clearInterval(intervalId);
   }, [session, isUpdatingPrices, updatePriceInfoStates]);
+
+  // Effect to prefetch card data when filtered collection changes
+  useEffect(() => {
+    if (filteredAndSortedCollection.length > 0) {
+      prefetchVisibleCards(filteredAndSortedCollection);
+    }
+  }, [filteredAndSortedCollection, prefetchVisibleCards]);
 
   // Handle updating market prices
   const handleUpdateMarketPrices = async (isAutoUpdate = false) => {
