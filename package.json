@@ -12,7 +12,7 @@
     "lint": "next lint",
     "export": "npm run download-all && next build",
     "update-github-data": "ts-node --project tsconfig.json src/scripts/updateGithubData.ts",
-    "download-missing-card-data": "ts-node --project tsconfig.json src/scripts/downloadMissingCardData.ts"
+    "download-missing-card-data": "node scripts/download-missing-card-data.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.1",
