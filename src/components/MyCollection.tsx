@@ -343,7 +343,10 @@ export default function MyCollection() {
     setTimeUntilNextUpdate(getTimeUntilNextUpdate());
   }, []);
 
-  // Effect to check if prices need to be updated when component mounts or when collection changes
+  // Track if we've already triggered an auto-update for the current collection
+  const [hasAutoUpdated, setHasAutoUpdated] = useState<boolean>(false);
+
+  // Effect to check if prices need to be updated when component mounts
   useEffect(() => {
     // Update the price info states
     updatePriceInfoStates();
@@ -353,14 +356,25 @@ export default function MyCollection() {
       updatePriceInfoStates();
     }, 60000); // Update every minute
 
-    // Check if prices need to be updated
-    if (session && !isUpdatingPrices && currentCollection.length > 0) {
+    return () => clearInterval(intervalId);
+  }, [updatePriceInfoStates]);
+
+  // Separate effect to handle auto price updates
+  useEffect(() => {
+    // Reset the auto-update flag when collection, group or type changes
+    setHasAutoUpdated(false);
+  }, [activeGroup, activeType]);
+
+  // Effect to trigger price updates when needed
+  useEffect(() => {
+    // Only auto-update if we haven't already updated for this collection view
+    // and we have cards to update
+    if (session && !isUpdatingPrices && currentCollection.length > 0 && !hasAutoUpdated) {
       // Auto-update prices when viewing collections
       handleUpdateMarketPrices(true);
+      setHasAutoUpdated(true);
     }
-
-    return () => clearInterval(intervalId);
-  }, [session, isUpdatingPrices, updatePriceInfoStates, currentCollection, activeGroup, activeType]);
+  }, [session, isUpdatingPrices, currentCollection, hasAutoUpdated, handleUpdateMarketPrices]);
 
   // Effect to prefetch card data when filtered collection changes
   useEffect(() => {
@@ -370,7 +384,7 @@ export default function MyCollection() {
   }, [filteredAndSortedCollection, prefetchVisibleCards]);
 
   // Handle updating market prices
-  const handleUpdateMarketPrices = async (isAutoUpdate = false) => {
+  const handleUpdateMarketPrices = useCallback(async (isAutoUpdate = false) => {
     if (isUpdatingPrices) return;
 
     setIsUpdatingPrices(true);
@@ -391,7 +405,8 @@ export default function MyCollection() {
       updatePriceTimestamp();
       updatePriceInfoStates();
 
-      // Refresh collections to show updated prices
+      // Refresh collections to show updated prices, but don't trigger another auto-update
+      setHasAutoUpdated(true); // Set this before refreshing to prevent loop
       await refreshCollections();
 
       // Clear message after 5 seconds
@@ -409,7 +424,7 @@ export default function MyCollection() {
     } finally {
       setIsUpdatingPrices(false);
     }
-  };
+  }, [activeGroup, refreshCollections, updatePriceInfoStates, updatePriceTimestamp, setHasAutoUpdated]);
 
   // Render logic
   if (authLoading) {
