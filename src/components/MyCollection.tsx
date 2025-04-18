@@ -282,9 +282,23 @@ export default function MyCollection() {
         const bestPrice = getBestPrice(item.card_id, updatedItem.market_price);
         if (bestPrice > 0) {
           updatedItem.market_price = bestPrice;
+          // Store this price in both caches for maximum persistence
+          storeCardPrice(item.card_id, bestPrice);
+          console.log(`[MyCollection] Using robust cached price ${bestPrice} for card ${item.card_id}`);
         } else {
           // Fall back to the original cache as a last resort
-          updatedItem.market_price = getCardPriceWithFallback(item.card_id, updatedItem.market_price);
+          const fallbackPrice = getCardPriceWithFallback(item.card_id, updatedItem.market_price);
+          if (fallbackPrice > 0) {
+            updatedItem.market_price = fallbackPrice;
+            // Store in robust cache for future use
+            storePrice(item.card_id, fallbackPrice);
+            console.log(`[MyCollection] Using fallback price ${fallbackPrice} for card ${item.card_id}`);
+          } else if (updatedItem.market_price > 0) {
+            // If we have a valid market price from the database, store it in both caches
+            storeCardPrice(item.card_id, updatedItem.market_price);
+            storePrice(item.card_id, updatedItem.market_price);
+            console.log(`[MyCollection] Using database price ${updatedItem.market_price} for card ${item.card_id}`);
+          }
         }
       }
 
@@ -984,9 +998,29 @@ export default function MyCollection() {
               <div className="flex justify-between w-full items-center mt-1">
                 {/* Check for price updates in localCollectionUpdates or global cache */}
                 <span className="text-xs font-medium text-gray-700">
-                  ${(localCollectionUpdates.has(`price_${item.card_id}`)
-                    ? localCollectionUpdates.get(`price_${item.card_id}`)
-                    : getCardPriceWithFallback(item.card_id, item.market_price)).toFixed(2)}
+                  ${(() => {
+                    // First check local updates
+                    if (localCollectionUpdates.has(`price_${item.card_id}`)) {
+                      return localCollectionUpdates.get(`price_${item.card_id}`);
+                    }
+
+                    // Then check robust cache
+                    const robustPrice = getBestPrice(item.card_id, item.market_price);
+                    if (robustPrice > 0) {
+                      return robustPrice;
+                    }
+
+                    // Then check original cache
+                    const fallbackPrice = getCardPriceWithFallback(item.card_id, item.market_price);
+                    if (fallbackPrice > 0) {
+                      // Store in robust cache for future use
+                      storePrice(item.card_id, fallbackPrice);
+                      return fallbackPrice;
+                    }
+
+                    // Last resort: use market_price from database
+                    return item.market_price || 0;
+                  })().toFixed(2)}
                 </span>
 
                 {/* Quantity Controls moved up to same level as price */}

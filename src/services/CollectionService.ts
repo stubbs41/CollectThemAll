@@ -146,8 +146,16 @@ export default class CollectionService {
 
           // Add item to appropriate collection type
           if (item.collection_type === 'have') {
+            // Ensure market_price is a number
+            if (item.market_price === null || item.market_price === undefined) {
+              item.market_price = 0;
+            }
             group.have.set(item.card_id, item);
           } else if (item.collection_type === 'want') {
+            // Ensure market_price is a number
+            if (item.market_price === null || item.market_price === undefined) {
+              item.market_price = 0;
+            }
             group.want.set(item.card_id, item);
           }
         });
