@@ -193,6 +193,7 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
                   src={getProxiedImageUrl(displayedCard.images?.large || displayedCard.images?.small || '/images/card-placeholder.png')}
                   alt={displayedCard.name || 'Pokemon Card'}
                   fill
+                  sizes="(max-width: 768px) 100vw, 300px"
                   className="object-contain"
                   priority
                 />

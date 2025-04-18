@@ -128,9 +128,9 @@ const CollectionDetailPage: React.FC = () => {
                                 <Image
                                     src={card.images.small}
                                     alt={card.name}
-                                    layout="fill"
-                                    objectFit="contain"
-                                    className="transition-transform duration-200 group-hover:scale-105"
+                                    fill
+                                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 16vw"
+                                    className="object-contain transition-transform duration-200 group-hover:scale-105"
                                 />
                                 {/* Optional: Add an overlay or link to view details */}
                             </div>
