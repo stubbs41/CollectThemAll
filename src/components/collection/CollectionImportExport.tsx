@@ -257,8 +257,8 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-4">
-      <h3 className="text-lg font-medium mb-3">Collection Actions</h3>
+    <div className="bg-white rounded-lg shadow border border-gray-200 p-4">
+      <h3 className="text-lg font-semibold text-gray-800 mb-3">Collection Actions</h3>
 
       <div className="flex flex-wrap gap-2 mb-4">
         <button
@@ -268,7 +268,7 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
           className={`px-4 py-2 text-sm font-medium rounded-lg ${
             isExporting ? 'bg-gray-400 cursor-wait' :
             collection.length === 0 ? 'bg-gray-300 cursor-not-allowed text-gray-500' :
-            'bg-green-600 text-white hover:bg-green-700'
+            'bg-green-600 text-white hover:bg-green-700 shadow-sm'
           }`}
           title="Export your collection as a JSON file"
         >
@@ -282,7 +282,7 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
           className={`px-4 py-2 text-sm font-medium rounded-lg ${
             isSharing ? 'bg-gray-400 cursor-wait' :
             collection.length === 0 ? 'bg-gray-300 cursor-not-allowed text-gray-500' :
-            'bg-purple-600 text-white hover:bg-purple-700'
+            'bg-purple-600 text-white hover:bg-purple-700 shadow-sm'
           }`}
           title="Create a shareable link to your collection"
         >
@@ -295,7 +295,7 @@ const CollectionImportExport: React.FC<CollectionImportExportProps> = ({
           onClick={handleImportClick}
           disabled={isImporting}
           className={`px-4 py-2 text-sm font-medium rounded-lg ${
-            isImporting ? 'bg-gray-400 cursor-wait' : 'bg-blue-600 text-white hover:bg-blue-700'
+            isImporting ? 'bg-gray-400 cursor-wait' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
           }`}
           title="Import a collection from a JSON file"
         >

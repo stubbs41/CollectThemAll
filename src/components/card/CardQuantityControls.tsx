@@ -39,9 +39,9 @@ export default function CardQuantityControls({
     // Don't allow negative quantities
     if (newQuantity < 0) newQuantity = 0;
 
-    // Throttle updates to prevent rapid API calls
+    // Throttle updates to prevent rapid API calls - reduced from 300ms to 100ms
     const now = Date.now();
-    if (now - lastUpdateTime < 300) {
+    if (now - lastUpdateTime < 100) {
       return;
     }
 
@@ -51,6 +51,11 @@ export default function CardQuantityControls({
 
     // Optimistic update
     setQuantity(newQuantity);
+
+    // Notify parent component immediately for faster UI updates
+    if (onQuantityChange) {
+      onQuantityChange(newQuantity);
+    }
 
     try {
       const response = await fetch('/api/collections/update-quantity', {
@@ -75,11 +80,6 @@ export default function CardQuantityControls({
 
       // Update with the actual quantity from the server
       setQuantity(data.quantity);
-
-      // Notify parent component if callback provided
-      if (onQuantityChange) {
-        onQuantityChange(data.quantity);
-      }
     } catch (err) {
       console.error('Error updating quantity:', err);
       setError(err instanceof Error ? err.message : 'Failed to update quantity');
@@ -91,13 +91,17 @@ export default function CardQuantityControls({
     }
   }, [cardId, collectionType, groupName, quantity, initialQuantity, lastUpdateTime, onQuantityChange]);
 
-  // Handlers for increment, decrement, and remove
+  // Handlers for increment, decrement, and remove - optimized for faster response
   const handleIncrement = useCallback(() => {
+    // Immediately update quantity for faster UI response
+    setQuantity(prev => prev + 1);
     updateQuantity(quantity + 1);
   }, [quantity, updateQuantity]);
 
   const handleDecrement = useCallback(() => {
     if (quantity > 0) {
+      // Immediately update quantity for faster UI response
+      setQuantity(prev => Math.max(0, prev - 1));
       updateQuantity(quantity - 1);
     }
   }, [quantity, updateQuantity]);
@@ -113,25 +117,27 @@ export default function CardQuantityControls({
       }
     }
 
+    // Immediately update quantity for faster UI response
+    setQuantity(0);
     updateQuantity(0);
   }, [quantity, updateQuantity]);
 
   return (
-    <div className="flex flex-col items-center">
-      {/* Quantity Controls */}
-      <div className="flex items-center justify-center w-full">
+    <div className="flex flex-col items-end">
+      {/* Quantity Controls - more compact and using red/white/blue colors */}
+      <div className="flex items-center justify-end">
         <button
           type="button"
           onClick={handleDecrement}
-          className="px-2 py-0.5 text-white bg-red-600 hover:bg-red-700 rounded-l text-sm font-bold leading-none disabled:bg-gray-300 disabled:cursor-not-allowed"
+          className="px-1.5 py-0.5 text-white bg-red-600 hover:bg-red-700 rounded-l text-xs font-bold leading-none disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-150"
           title="Decrease quantity"
           disabled={quantity <= 0 || isUpdating}
         >
           -
         </button>
         <span
-          className={`px-3 py-0.5 text-sm font-semibold leading-none min-w-[30px] text-center border-t border-b border-gray-300 ${
-            isUpdating ? 'bg-blue-100 text-blue-800' : 'bg-white text-gray-700'
+          className={`px-2 py-0.5 text-xs font-semibold leading-none min-w-[24px] text-center bg-white text-gray-800 border-t border-b border-gray-300 ${
+            isUpdating ? 'bg-blue-50' : ''
           }`}
         >
           {quantity}
@@ -139,7 +145,7 @@ export default function CardQuantityControls({
         <button
           type="button"
           onClick={handleIncrement}
-          className="px-2 py-0.5 text-white bg-blue-600 hover:bg-blue-700 rounded-r text-sm font-bold leading-none disabled:bg-gray-300 disabled:cursor-not-allowed"
+          className="px-1.5 py-0.5 text-white bg-blue-600 hover:bg-blue-700 rounded-r text-xs font-bold leading-none disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-150"
           title="Increase quantity"
           disabled={isUpdating}
         >
@@ -149,21 +155,23 @@ export default function CardQuantityControls({
 
       {/* Error message */}
       {error && (
-        <div className="text-xs text-red-600 mt-1 text-center">
+        <div className="text-xs text-red-600 mt-1 text-right">
           Error: {error}
         </div>
       )}
 
-      {/* Remove Button */}
-      <button
-        type="button"
-        onClick={handleRemove}
-        className="mt-2 text-xs text-red-600 hover:text-red-800 disabled:text-red-300 disabled:cursor-not-allowed"
-        title="Remove all copies from collection"
-        disabled={isUpdating || quantity === 0}
-      >
-        Remove All
-      </button>
+      {/* Remove Button - only show when hovering over card */}
+      {quantity > 0 && (
+        <button
+          type="button"
+          onClick={handleRemove}
+          className="mt-1 text-[10px] text-red-600 hover:text-red-800 disabled:text-red-300 disabled:cursor-not-allowed opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+          title="Remove all copies from collection"
+          disabled={isUpdating}
+        >
+          Remove
+        </button>
+      )}
     </div>
   );
 }

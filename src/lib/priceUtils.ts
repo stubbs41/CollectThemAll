@@ -75,8 +75,16 @@ export function getLastUpdateTimeFormatted(): string {
     return 'Never updated';
   }
 
-  // Format the date
-  return timestamp.toLocaleString();
+  // Format the date with format '4/17/2025, 11:34:19 PM' without 'Prices: Last'
+  return timestamp.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
 }
 
 /**

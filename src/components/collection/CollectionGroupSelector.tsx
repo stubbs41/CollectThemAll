@@ -68,7 +68,7 @@ const CollectionGroupSelector: React.FC<CollectionGroupSelectorProps> = ({ onCre
                 id="collection-group"
                 value={activeGroup}
                 onChange={handleGroupChange}
-                className="block w-full pl-3 pr-10 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm appearance-none"
+                className="block w-full pl-3 pr-10 py-2 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm appearance-none font-medium text-gray-900"
                 aria-label="Select collection group"
               >
               {groups.map(group => {
@@ -77,7 +77,7 @@ const CollectionGroupSelector: React.FC<CollectionGroupSelectorProps> = ({ onCre
                   return null;
                 }
                 return (
-                  <option key={group} value={group}>
+                  <option key={group} value={group} className="font-medium text-gray-900">
                     {group}
                   </option>
                 );
@@ -135,19 +135,19 @@ const CollectionGroupSelector: React.FC<CollectionGroupSelectorProps> = ({ onCre
         </div>
 
         {activeGroupInfo && (
-          <div className="flex-shrink-0 bg-gray-100 p-3 rounded-md">
+          <div className="flex-shrink-0 bg-gray-100 p-3 rounded-md border border-gray-200 shadow-sm">
             <h3 className="text-sm font-medium text-gray-700 mb-1">Collection Value</h3>
             <div className="grid grid-cols-3 gap-3">
               <div className="text-center">
-                <p className="text-xs text-gray-500">I Have</p>
+                <p className="text-xs font-medium text-gray-700">I Have</p>
                 <p className="text-sm font-bold text-blue-700">${activeGroupInfo.have_value.toFixed(2)}</p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-gray-500">I Want</p>
+                <p className="text-xs font-medium text-gray-700">I Want</p>
                 <p className="text-sm font-bold text-purple-700">${activeGroupInfo.want_value.toFixed(2)}</p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-gray-500">Total</p>
+                <p className="text-xs font-medium text-gray-700">Total</p>
                 <p className="text-sm font-bold text-green-700">${activeGroupInfo.total_value.toFixed(2)}</p>
               </div>
             </div>

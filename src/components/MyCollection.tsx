@@ -421,6 +421,41 @@ export default function MyCollection() {
       if (!response.ok) {
         const errorData = await response.json();
         console.error('Error updating quantity:', errorData.error);
+      } else {
+        // Update the price timestamp to reflect the latest data
+        updatePriceTimestamp();
+        updatePriceInfoStates();
+
+        // Fetch updated collection values to update the total value display
+        // without requiring a full page refresh
+        try {
+          const valuesResponse = await fetch(`/api/collections?groupName=${encodeURIComponent(activeGroup)}`);
+          if (valuesResponse.ok) {
+            const valuesData = await valuesResponse.json();
+            if (valuesData.collection) {
+              // Create a map of card ID to market price
+              const priceMap = new Map();
+              valuesData.collection.forEach((item: any) => {
+                priceMap.set(item.card_id, item.market_price || 0);
+              });
+
+              // Update the local collection with new prices
+              const priceUpdates = new Map(newUpdates);
+              currentCollection.forEach(item => {
+                if (priceMap.has(item.card_id)) {
+                  const updatedPrice = priceMap.get(item.card_id);
+                  if (updatedPrice !== item.market_price) {
+                    // Store the updated price in our local updates
+                    priceUpdates.set(`price_${item.card_id}`, updatedPrice);
+                  }
+                }
+              });
+              setLocalCollectionUpdates(priceUpdates);
+            }
+          }
+        } catch (priceErr) {
+          console.error('Error updating local prices after quantity change:', priceErr);
+        }
       }
 
       // No need to refresh the entire collection
@@ -429,7 +464,7 @@ export default function MyCollection() {
     } catch (error) {
       console.error('Error updating quantity:', error);
     }
-  }, [localCollectionUpdates, activeType, activeGroup]);
+  }, [localCollectionUpdates, activeType, activeGroup, currentCollection, updatePriceInfoStates]);
 
   // Handle opening the create group modal
   const handleOpenCreateGroupModal = () => {
@@ -614,25 +649,35 @@ export default function MyCollection() {
       {/* Collection Overview and Actions */}
       <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
         <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+          {/* Import/Export Component - Moved to left side */}
+          <div className="w-full md:w-1/3 order-2 md:order-1">
+            <CollectionImportExport
+              collection={currentCollection}
+              collectionType={activeType}
+              groupName={activeGroup}
+              availableGroups={groups}
+              onImportComplete={refreshCollections}
+            />
+          </div>
           {/* Collection Stats */}
-          <div className="w-full md:w-2/3">
+          <div className="w-full md:w-2/3 order-1 md:order-2">
             <h2 className="text-xl font-semibold text-gray-700 mb-3">Collection Overview</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="bg-gray-100 p-3 rounded text-center">
-                <p className="text-sm text-gray-600">Unique Cards</p>
+              <div className="bg-blue-50 p-3 rounded text-center border border-blue-100 shadow-sm">
+                <p className="text-sm font-medium text-gray-700">Unique Cards</p>
                 <p className="text-lg font-bold text-gray-800">{collectionStats.uniqueCards}</p>
               </div>
-              <div className="bg-gray-100 p-3 rounded text-center">
-                <p className="text-sm text-gray-600">Total Cards</p>
+              <div className="bg-green-50 p-3 rounded text-center border border-green-100 shadow-sm">
+                <p className="text-sm font-medium text-gray-700">Total Cards</p>
                 <p className="text-lg font-bold text-gray-800">{collectionStats.totalCards}</p>
               </div>
-              <div className="bg-gray-100 p-3 rounded text-center">
-                <p className="text-sm text-gray-600">Total Value</p>
+              <div className="bg-purple-50 p-3 rounded text-center border border-purple-100 shadow-sm">
+                <p className="text-sm font-medium text-gray-700">Total Value</p>
                 <p className="text-lg font-bold text-gray-800">${collectionStats.totalValue.toFixed(2)}</p>
-                <p className="text-xs text-gray-600 mt-1">{isUpdatingPrices ? 'Updating prices...' : `Updated: ${lastUpdateTime}`}</p>
+                <p className="text-xs font-medium text-gray-700 mt-1">{isUpdatingPrices ? 'Updating prices...' : getLastUpdateTimeFormatted()}</p>
               </div>
-              <div className="bg-gray-100 p-3 rounded text-center">
-                <p className="text-sm text-gray-600">Recently Added</p>
+              <div className="bg-amber-50 p-3 rounded text-center border border-amber-100 shadow-sm">
+                <p className="text-sm font-medium text-gray-700">Recently Added</p>
                 <p className="text-lg font-bold text-gray-800">{collectionStats.recentlyAdded}</p>
               </div>
             </div>
@@ -652,7 +697,7 @@ export default function MyCollection() {
                 >
                   I Have ({collectionCounts.have})
                 </button>
-                <p className="text-xs text-gray-600 mt-1 text-center">{isUpdatingPrices ? 'Updating prices...' : `Updated: ${lastUpdateTime}`}</p>
+                <p className="text-xs font-medium text-gray-700 mt-1 text-center">{isUpdatingPrices ? 'Updating prices...' : getLastUpdateTimeFormatted()}</p>
               </div>
               <div className="flex flex-col">
                 <button
@@ -677,16 +722,7 @@ export default function MyCollection() {
             </div>
           </div>
 
-          {/* Import/Export Component */}
-          <div className="w-full md:w-1/3">
-            <CollectionImportExport
-              collection={currentCollection}
-              collectionType={activeType}
-              groupName={activeGroup}
-              availableGroups={groups}
-              onImportComplete={refreshCollections}
-            />
-          </div>
+          {/* Import/Export Component moved to left side */}
         </div>
       </div>
 
@@ -811,7 +847,7 @@ export default function MyCollection() {
           {filteredAndSortedCollection.map((item) => (
             <div
               key={item.id}
-              className="bg-white rounded-lg shadow border border-gray-200 p-3 flex flex-col items-center text-center relative group"
+              className="bg-blue-50 rounded-lg shadow border border-blue-100 p-3 flex flex-col items-center text-center relative group hover:shadow-md transition-shadow duration-200"
             >
               {/* Card Image */}
               <div
@@ -837,25 +873,30 @@ export default function MyCollection() {
               </div>
 
               {/* Card Details */}
-              <h3 className="text-sm font-medium text-gray-800 mb-1 line-clamp-1" title={item.card_name || item.card_id}>
+              <h3 className="text-sm font-medium text-gray-800 mb-1 line-clamp-2 h-10" title={item.card_name || item.card_id}>
                 {item.card_name || item.card_id}
               </h3>
 
-              <div className="flex justify-between w-full text-xs text-gray-600 mt-1">
-                <span className="font-medium">${(item.market_price || 0).toFixed(2)}</span>
-              </div>
+              <div className="flex justify-between w-full items-center mt-1">
+                {/* Check for price updates in localCollectionUpdates */}
+                <span className="text-xs font-medium text-gray-700">
+                  ${(localCollectionUpdates.has(`price_${item.card_id}`)
+                    ? localCollectionUpdates.get(`price_${item.card_id}`)
+                    : item.market_price || 0).toFixed(2)}
+                </span>
 
-              {/* Quantity Controls using the new component */}
-              <div className="mt-2 w-full">
-                <CardQuantityControls
-                  cardId={item.card_id}
-                  cardName={item.card_name}
-                  cardImageSmall={item.card_image_small}
-                  initialQuantity={item.quantity}
-                  collectionType={activeType}
-                  groupName={activeGroup}
-                  onQuantityChange={(newQuantity) => handleQuantityChange(item.card_id, newQuantity)}
-                />
+                {/* Quantity Controls moved up to same level as price */}
+                <div className="flex-grow">
+                  <CardQuantityControls
+                    cardId={item.card_id}
+                    cardName={item.card_name}
+                    cardImageSmall={item.card_image_small}
+                    initialQuantity={item.quantity}
+                    collectionType={activeType}
+                    groupName={activeGroup}
+                    onQuantityChange={(newQuantity) => handleQuantityChange(item.card_id, newQuantity)}
+                  />
+                </div>
               </div>
             </div>
           ))}
