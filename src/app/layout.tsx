@@ -5,7 +5,8 @@ import "@/styles/mobile-optimizations.css";
 import Header from "@/components/Header";
 import MobileNavigation from "@/components/MobileNavigation";
 import ApiKeyVerifier from "@/components/ApiKeyVerifier";
-import ClientWrapper from "@/components/ClientWrapper";
+// Temporarily remove ClientWrapper to see if it's causing the issue
+// import ClientWrapper from "@/components/ClientWrapper";
 import { CollectionProvider } from "@/context/CollectionContext";
 import { AuthProvider } from "@/context/AuthContext";
 
@@ -38,13 +39,12 @@ export default function RootLayout({
           <CollectionProvider>
             {/* API Key Verifier runs at startup to check API keys */}
             <ApiKeyVerifier />
-            <ClientWrapper>
-              <Header />
-              <main className="flex-grow container mx-auto px-4 py-6 page-container">
-                {children}
-              </main>
-              <MobileNavigation />
-            </ClientWrapper>
+            {/* Temporarily removed ClientWrapper */}
+            <Header />
+            <main className="flex-grow container mx-auto px-4 py-6 page-container">
+              {children}
+            </main>
+            <MobileNavigation />
           </CollectionProvider>
         </AuthProvider>
       </body>
