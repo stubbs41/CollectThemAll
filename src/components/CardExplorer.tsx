@@ -6,6 +6,8 @@ import CardBinder from "@/components/CardBinder";
 import { PokemonCard } from "@/lib/types";
 // Placeholder import for the filter panel
 import FilterPanel from './explore/FilterPanel';
+// Import the price cache functions
+import { applyPricesToCards } from '@/lib/priceCache';
 
 const CARDS_PER_PAGE = 32; // Define cards per page (should match binder spread)
 
@@ -158,9 +160,11 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
             }
           }
 
-          // -- Set fetched cards --
-          // We'll let the useEffect handle setting displayedCards with preserved prices
-          setFetchedCards(data.cards);
+          // Apply cached prices to the fetched cards
+          const cardsWithPrices = applyPricesToCards(data.cards);
+
+          // Set fetched cards with prices applied
+          setFetchedCards(cardsWithPrices);
           setTotalPages(data.totalPages || Math.ceil(data.totalCount / CARDS_PER_PAGE));
         }
       })
@@ -256,9 +260,11 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
           setEmptyPageMessage(null);
         }
 
-        // -- Set fetchedCards --
-        // We'll let the useEffect handle setting displayedCards with preserved prices
-        setFetchedCards(data.cards);
+        // Apply cached prices to the fetched cards
+        const cardsWithPrices = applyPricesToCards(data.cards);
+
+        // Set fetched cards with prices applied
+        setFetchedCards(cardsWithPrices);
 
         // Client-side filtering will happen in useEffect to set displayedCards
         setTotalPages(data.totalPages || Math.ceil(data.totalCount / CARDS_PER_PAGE)); // Pagination based on search total
@@ -320,32 +326,10 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
   }, [currentPage, filters, searchPerformed, activeSearchTerm, fetchDataForPage, searchCards]);
 
   // Helper function to preserve price data between card updates
+  // Now uses the global price cache
   const preservePriceData = useCallback((oldCards: PokemonCard[], newCards: PokemonCard[]): PokemonCard[] => {
-    if (oldCards.length === 0 || newCards.length === 0) {
-      return newCards;
-    }
-
-    // Create a map of existing card prices by ID
-    const priceMap = new Map();
-    oldCards.forEach(card => {
-      if (card.tcgplayer?.prices) {
-        priceMap.set(card.id, card.tcgplayer.prices);
-      }
-    });
-
-    // Apply existing prices to new cards
-    return newCards.map(card => {
-      if (priceMap.has(card.id) && (!card.tcgplayer?.prices || Object.keys(card.tcgplayer.prices).length === 0)) {
-        return {
-          ...card,
-          tcgplayer: {
-            ...card.tcgplayer,
-            prices: priceMap.get(card.id)
-          }
-        };
-      }
-      return card;
-    });
+    // Apply cached prices to the new cards
+    return applyPricesToCards(newCards);
   }, []);
 
   // --- Effect to apply client-side filters AFTER search results arrive ---

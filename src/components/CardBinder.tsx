@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { PokemonCard } from '@/lib/types';
 import SimpleCardDetailModal from './SimpleCardDetailModal';
 import { formatPrice, getMarketPrice, getBestAvailablePrice, getProxiedImageUrl } from '@/lib/utils';
+import { applyPricesToCards } from '@/lib/priceCache';
 import { useCollections } from '@/context/CollectionContext';
 import { useAuth } from '@/context/AuthContext';
 import { fetchCardDetails } from '@/lib/pokemonApi'; // Import for prefetching
@@ -73,6 +74,15 @@ const CardBinder: React.FC<CardBinderProps> = ({
     prefetchVisibleCards();
   }, [prefetchVisibleCards]);
 
+  // Apply cached prices to cards when they change
+  const [processedCards, setProcessedCards] = useState<PokemonCard[]>(cards);
+
+  useEffect(() => {
+    // Apply cached prices to the cards
+    const cardsWithPrices = applyPricesToCards(cards);
+    setProcessedCards(cardsWithPrices);
+  }, [cards]);
+
   const handleCardClick = (cardId: string) => {
     setSelectedCardId(cardId);
   };
@@ -84,7 +94,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
   const currentPageIndex = currentPage - 1;
   const startIndex = currentPageIndex * CARDS_PER_SPREAD;
 
-  const currentSpreadCards = cards;
+  const currentSpreadCards = processedCards;
 
   const leftPageCards = currentSpreadCards.slice(0, 16);
   const rightPageCards = currentSpreadCards.slice(16, 16 + 16);

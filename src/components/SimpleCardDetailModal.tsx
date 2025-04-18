@@ -5,6 +5,7 @@ import { PokemonCard } from '@/lib/types';
 import { fetchCardDetails } from '@/lib/pokemonApi';
 import Image from 'next/image';
 import { getProxiedImageUrl } from '@/lib/utils';
+import { applyPriceToCard } from '@/lib/priceCache';
 import { useAuth } from '@/context/AuthContext';
 import { useCollections } from '@/context/CollectionContext';
 import CollectionSelector from './card/CollectionSelector';
@@ -78,8 +79,9 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
 
         if (!isMounted) return;
 
-        // Safely set the card data
-        setCard(fetchedInitialDetails);
+        // Apply cached prices and set the card data
+        const cardWithPrices = applyPriceToCard(fetchedInitialDetails);
+        setCard(cardWithPrices);
 
         // If we already have prints and we're just switching between them,
         // don't refetch the prints list
@@ -116,18 +118,21 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
 
         if (!isMounted) return;
 
-        // Safely combine prints
+        // Safely combine prints and apply cached prices
         try {
-          const combinedPrints = [...fetchedPrints];
+          // Apply cached prices to all prints
+          const printsWithPrices = fetchedPrints.map(print => applyPriceToCard(print));
+
+          const combinedPrints = [...printsWithPrices];
           // Only add the current card if it's not already in the prints array
-          if (fetchedPrints.length === 0 || !combinedPrints.some(p => p.id === fetchedInitialDetails.id)) {
-            combinedPrints.unshift(fetchedInitialDetails);
+          if (fetchedPrints.length === 0 || !combinedPrints.some(p => p.id === cardWithPrices.id)) {
+            combinedPrints.unshift(cardWithPrices);
           }
           setPrints(combinedPrints);
         } catch (combineError) {
           console.error('Error combining prints:', combineError);
           // At minimum, show the current card
-          setPrints([fetchedInitialDetails]);
+          setPrints([cardWithPrices]);
         }
 
       } catch (err) {
