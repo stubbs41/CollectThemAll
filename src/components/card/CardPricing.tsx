@@ -1,21 +1,34 @@
 import React, { useState } from 'react';
 import { CardPrices, PriceData } from '@/lib/types';
 import { formatPrice } from '@/lib/utils';
+import { storeCardPrice } from '@/lib/pricePersistence';
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, CurrencyDollarIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 
 interface CardPricingProps {
   prices: CardPrices | undefined | null;
+  cardId?: string; // Optional card ID for price persistence
 }
 
 // Helper function to get the most relevant price data
-const getDisplayPrices = (prices: CardPrices | undefined | null): PriceData | null => {
+const getDisplayPrices = (prices: CardPrices | undefined | null, cardId?: string): PriceData | null => {
   if (!prices) return null;
-  if (prices.holofoil?.market) return prices.holofoil;
-  if (prices.reverseHolofoil?.market) return prices.reverseHolofoil;
-  if (prices.normal?.market) return prices.normal;
-  if (prices.firstEditionHolofoil?.market) return prices.firstEditionHolofoil;
-  if (prices.firstEditionNormal?.market) return prices.firstEditionNormal;
-  return Object.values(prices).find(priceData => priceData?.market != null) ?? null;
+
+  // Find the first available price data with a market price
+  let priceData: PriceData | null = null;
+
+  if (prices.holofoil?.market) priceData = prices.holofoil;
+  else if (prices.reverseHolofoil?.market) priceData = prices.reverseHolofoil;
+  else if (prices.normal?.market) priceData = prices.normal;
+  else if (prices.firstEditionHolofoil?.market) priceData = prices.firstEditionHolofoil;
+  else if (prices.firstEditionNormal?.market) priceData = prices.firstEditionNormal;
+  else priceData = Object.values(prices).find(priceData => priceData?.market != null) ?? null;
+
+  // Store the price in our global cache if it's valid and we have a card ID
+  if (priceData?.market && cardId) {
+    storeCardPrice(cardId, priceData.market);
+  }
+
+  return priceData;
 };
 
 // Helper function to get the finish type name
@@ -30,9 +43,9 @@ const getPriceFinishType = (prices: CardPrices | undefined | null): string => {
   return firstAvailableKey ? firstAvailableKey.replace(/([A-Z])/g, ' $1').trim() : 'Unknown';
 };
 
-const CardPricing: React.FC<CardPricingProps> = ({ prices }) => {
+const CardPricing: React.FC<CardPricingProps> = ({ prices, cardId }) => {
   const [showAllPrices, setShowAllPrices] = useState(true);
-  const displayPriceData = getDisplayPrices(prices);
+  const displayPriceData = getDisplayPrices(prices, cardId);
   const finishType = getPriceFinishType(prices);
   const lastUpdated = prices?.updatedAt ? new Date(prices.updatedAt).toLocaleDateString() : null;
 

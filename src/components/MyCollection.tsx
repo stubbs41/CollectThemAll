@@ -24,6 +24,7 @@ import { preloadImages } from '@/lib/utils';
 import { FunnelIcon, CurrencyDollarIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { CollectionType } from '@/services/CollectionService';
 import { shouldUpdatePrices, updatePriceTimestamp, getLastUpdateTimeFormatted, getTimeUntilNextUpdate } from '@/lib/priceUtils';
+import { storeCardPrice, getCardPriceWithFallback, applyPricesToCollection } from '@/lib/pricePersistence';
 import { PokemonCard } from '@/lib/types';
 import SimpleCardDetailModal from '@/components/SimpleCardDetailModal';
 import { fetchCardDetails } from '@/lib/pokemonApi';
@@ -268,6 +269,11 @@ export default function MyCollection() {
       if (localCollectionUpdates.has(priceKey)) {
         const updatedPrice = localCollectionUpdates.get(priceKey);
         updatedItem.market_price = updatedPrice as number;
+        // Store the price in our global cache
+        storeCardPrice(item.card_id, updatedPrice as number);
+      } else {
+        // Use the price from our global cache if the current price is missing or zero
+        updatedItem.market_price = getCardPriceWithFallback(item.card_id, updatedItem.market_price);
       }
 
       return updatedItem;
@@ -277,6 +283,9 @@ export default function MyCollection() {
     result = result.filter(item => {
       return !localCollectionUpdates.has(item.card_id) || localCollectionUpdates.get(item.card_id)! > 0;
     });
+
+    // Apply our price persistence to ensure all cards have valid prices
+    result = applyPricesToCollection(result);
 
     // Apply basic search filter if not using advanced filters
     if (!filteredByAdvanced && activeFilter.trim()) {
@@ -459,6 +468,8 @@ export default function MyCollection() {
                   if (updatedPrice !== item.market_price) {
                     // Store the updated price in our local updates
                     priceUpdates.set(`price_${item.card_id}`, updatedPrice);
+                    // Also store in our global cache for persistence
+                    storeCardPrice(item.card_id, updatedPrice);
                   }
                 }
               });
@@ -561,6 +572,8 @@ export default function MyCollection() {
                   // Store the updated price in our local updates
                   // We'll use a special key format to distinguish price updates from quantity updates
                   newUpdates.set(`price_${item.card_id}`, updatedPrice);
+                  // Also store in our global cache for persistence
+                  storeCardPrice(item.card_id, updatedPrice);
                 }
               }
             });
@@ -945,11 +958,11 @@ export default function MyCollection() {
               </h3>
 
               <div className="flex justify-between w-full items-center mt-1">
-                {/* Check for price updates in localCollectionUpdates */}
+                {/* Check for price updates in localCollectionUpdates or global cache */}
                 <span className="text-xs font-medium text-gray-700">
                   ${(localCollectionUpdates.has(`price_${item.card_id}`)
                     ? localCollectionUpdates.get(`price_${item.card_id}`)
-                    : item.market_price || 0).toFixed(2)}
+                    : getCardPriceWithFallback(item.card_id, item.market_price)).toFixed(2)}
                 </span>
 
                 {/* Quantity Controls moved up to same level as price */}

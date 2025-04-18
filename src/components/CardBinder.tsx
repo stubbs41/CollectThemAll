@@ -8,6 +8,7 @@ import { PokemonCard } from '@/lib/types';
 import SimpleCardDetailModal from './SimpleCardDetailModal';
 import { formatPrice, getMarketPrice, getBestAvailablePrice, getProxiedImageUrl } from '@/lib/utils';
 import { applyPricesToCards } from '@/lib/priceCache';
+import { getCardPriceWithFallback, storeCardPrice } from '@/lib/pricePersistence';
 import { useCollections } from '@/context/CollectionContext';
 import { useAuth } from '@/context/AuthContext';
 import { fetchCardDetails } from '@/lib/pokemonApi'; // Import for prefetching
@@ -229,17 +230,26 @@ const CardBinder: React.FC<CardBinderProps> = ({
 
                                      {/* Use getBestAvailablePrice for better pricing fallback */}
                                      {(() => {
+                                         // Try to get the best price from the card data
                                          const bestPrice = card ? getBestAvailablePrice(card.tcgplayer?.prices) : null;
-                                         const isMarketPrice = card && getMarketPrice(card.tcgplayer?.prices) === bestPrice;
+                                         // If no price is available, try to get it from our global cache
+                                         const finalPrice = card && (bestPrice === null || bestPrice === 0) ?
+                                             getCardPriceWithFallback(card.id, bestPrice) : bestPrice;
+                                         const isMarketPrice = card && getMarketPrice(card.tcgplayer?.prices) === finalPrice;
+
+                                         // Store the price in our global cache if it's valid
+                                         if (card && finalPrice !== null && finalPrice > 0) {
+                                             storeCardPrice(card.id, finalPrice);
+                                         }
 
                                          return (
-                                             <div className={`mt-0.5 py-0.5 px-1 rounded ${bestPrice ? 'bg-gray-800' : 'bg-gray-500'}`}>
-                                                 <p className={`text-[10px] font-bold leading-tight ${bestPrice ? 'text-yellow-300' : 'text-white'}`}>
-                                                     {bestPrice ? formatPrice(bestPrice) : 'No Price'}
+                                             <div className={`mt-0.5 py-0.5 px-1 rounded ${finalPrice ? 'bg-gray-800' : 'bg-gray-500'}`}>
+                                                 <p className={`text-[10px] font-bold leading-tight ${finalPrice ? 'text-yellow-300' : 'text-white'}`}>
+                                                     {finalPrice ? formatPrice(finalPrice) : 'No Price'}
                                                  </p>
                                              </div>
                                          );
-                                     })()}
+                                     })()
 
                                      <p className="text-[8px] text-gray-600 leading-none mt-0.5">Market Price</p>
                                 </div>

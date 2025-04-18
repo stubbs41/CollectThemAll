@@ -6,6 +6,7 @@ import { fetchCardDetails } from '@/lib/pokemonApi';
 import Image from 'next/image';
 import { getProxiedImageUrl } from '@/lib/utils';
 import { applyPriceToCard } from '@/lib/priceCache';
+import { getCardPriceWithFallback } from '@/lib/pricePersistence';
 import { useAuth } from '@/context/AuthContext';
 import { useCollections } from '@/context/CollectionContext';
 import CollectionSelector from './card/CollectionSelector';
@@ -221,7 +222,7 @@ const SimpleCardDetailModal: React.FC<SimpleCardDetailModalProps> = ({ cardId, o
 
               {/* Pricing section */}
               <div className="border-t border-gray-200 pt-4">
-                <CardPricing prices={displayedCard.tcgplayer?.prices} />
+                <CardPricing prices={displayedCard.tcgplayer?.prices} cardId={displayedCard.id} />
               </div>
 
               {/* Print selector */}

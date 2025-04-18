@@ -127,6 +127,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ cardId, onClose }) =>
     >
       <div className="bg-white rounded-lg shadow-xl px-8 py-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto relative text-gray-900" ref={modalRef}>
         <button
+          type="button"
           onClick={onClose}
           className="absolute top-4 right-5 text-gray-400 hover:text-gray-600 text-3xl font-light"
           aria-label="Close modal"
@@ -176,7 +177,7 @@ const CardDetailModal: React.FC<CardDetailModalProps> = ({ cardId, onClose }) =>
 
               {/* Pricing section */}
               <div className="border-t border-gray-200 pt-4">
-                <CardPricing prices={displayedCard.tcgplayer?.prices} />
+                <CardPricing prices={displayedCard.tcgplayer?.prices} cardId={displayedCard.id} />
               </div>
 
               {/* Print selector */}
