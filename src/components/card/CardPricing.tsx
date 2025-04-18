@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CardPrices, PriceData } from '@/lib/types';
 import { formatPrice } from '@/lib/utils';
 import { storeCardPrice, getCardPrice, getCardPriceWithFallback } from '@/lib/pricePersistence';
+import { storePrice, getBestPrice } from '@/lib/robustPriceCache';
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, CurrencyDollarIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 
 interface CardPricingProps {
@@ -11,16 +12,35 @@ interface CardPricingProps {
 
 // Helper function to get the most relevant price data
 const getDisplayPrices = (prices: CardPrices | undefined | null, cardId?: string): PriceData | null => {
-  // If we have a card ID, try to get the price from our global cache first
-  let cachedMarketPrice: number | undefined;
+  // If we have a card ID, try to get the price from our robust cache first
+  let robustCachedPrice: number = 0;
   if (cardId) {
-    cachedMarketPrice = getCardPrice(cardId);
+    robustCachedPrice = getBestPrice(cardId, null);
   }
 
-  // If we have a valid cached price, create a price data object with it
-  if (cachedMarketPrice !== undefined && cachedMarketPrice > 0) {
+  // If we have a valid robust cached price, create a price data object with it
+  if (robustCachedPrice > 0) {
+    console.log(`[CardPricing] Using robust cached price ${robustCachedPrice} for card ${cardId}`);
     return {
-      market: cachedMarketPrice,
+      market: robustCachedPrice,
+      low: null,
+      mid: null,
+      high: null,
+      directLow: null
+    };
+  }
+
+  // Try the original cache as a fallback
+  let originalCachedPrice: number | undefined;
+  if (cardId) {
+    originalCachedPrice = getCardPrice(cardId);
+  }
+
+  // If we have a valid original cached price, create a price data object with it
+  if (originalCachedPrice !== undefined && originalCachedPrice > 0) {
+    console.log(`[CardPricing] Using original cached price ${originalCachedPrice} for card ${cardId}`);
+    return {
+      market: originalCachedPrice,
       low: null,
       mid: null,
       high: null,
@@ -41,14 +61,19 @@ const getDisplayPrices = (prices: CardPrices | undefined | null, cardId?: string
   else if (prices.firstEditionNormal?.market) priceData = prices.firstEditionNormal;
   else priceData = Object.values(prices).find(priceData => priceData?.market != null) ?? null;
 
-  // Store the price in our global cache if it's valid and we have a card ID
+  // Store the price in BOTH our caches if it's valid and we have a card ID
   if (priceData?.market && cardId) {
+    console.log(`[CardPricing] Storing API price ${priceData.market} for card ${cardId}`);
     storeCardPrice(cardId, priceData.market);
+    storePrice(cardId, priceData.market);
   } else if (cardId) {
     // If we don't have a valid price from the API, try to get it from our fallback cache
     const fallbackPrice = getCardPriceWithFallback(cardId, priceData?.market || null);
     if (fallbackPrice > 0) {
+      console.log(`[CardPricing] Using fallback price ${fallbackPrice} for card ${cardId}`);
       // If we have a valid fallback price, create a price data object with it
+      // Also store it in our robust cache for future use
+      storePrice(cardId, fallbackPrice);
       return {
         market: fallbackPrice,
         low: null,

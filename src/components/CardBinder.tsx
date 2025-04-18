@@ -9,6 +9,7 @@ import SimpleCardDetailModal from './SimpleCardDetailModal';
 import { formatPrice, getMarketPrice, getBestAvailablePrice, getProxiedImageUrl } from '@/lib/utils';
 import { applyPricesToCards } from '@/lib/priceCache';
 import { getCardPriceWithFallback, storeCardPrice, getCardPrice } from '@/lib/pricePersistence';
+import { storePrice, getBestPrice, applyPricesToItems } from '@/lib/robustPriceCache';
 import { useCollections } from '@/context/CollectionContext';
 import { useAuth } from '@/context/AuthContext';
 import { fetchCardDetails } from '@/lib/pokemonApi'; // Import for prefetching
@@ -233,21 +234,38 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                          // Try to get the best price from the card data
                                          const bestPrice = card ? getBestAvailablePrice(card.tcgplayer?.prices) : null;
 
-                                         // Always try to get the price from our global cache first
+                                         // Always try to get the price from our robust cache first
                                          // This ensures we use the most persistent price available
-                                         const cachedPrice = card ? getCardPrice(card.id) : null;
+                                         const robustCachedPrice = card ? getBestPrice(card.id, null) : 0;
 
-                                         // Use the cached price if available, otherwise use the best price from the card
-                                         const finalPrice = cachedPrice !== undefined && cachedPrice > 0 ?
-                                             cachedPrice :
-                                             (card && (bestPrice === null || bestPrice === 0) ?
-                                                 getCardPriceWithFallback(card.id, bestPrice) : bestPrice);
+                                         // Fall back to the original cache if needed
+                                         const originalCachedPrice = card ? getCardPrice(card.id) : null;
+
+                                         // Use the best available price with this priority:
+                                         // 1. Robust cache
+                                         // 2. Original cache
+                                         // 3. API price
+                                         // 4. Fallback price
+                                         let finalPrice;
+                                         if (robustCachedPrice > 0) {
+                                             finalPrice = robustCachedPrice;
+                                         } else if (originalCachedPrice !== undefined && originalCachedPrice > 0) {
+                                             finalPrice = originalCachedPrice;
+                                         } else if (bestPrice !== null && bestPrice > 0) {
+                                             finalPrice = bestPrice;
+                                         } else if (card) {
+                                             finalPrice = getCardPriceWithFallback(card.id, bestPrice);
+                                         } else {
+                                             finalPrice = null;
+                                         }
 
                                          const isMarketPrice = card && getMarketPrice(card.tcgplayer?.prices) === finalPrice;
 
-                                         // Store the price in our global cache if it's valid
+                                         // Store the price in BOTH our caches if it's valid
                                          if (card && finalPrice !== null && finalPrice > 0) {
                                              storeCardPrice(card.id, finalPrice);
+                                             storePrice(card.id, finalPrice);
+                                             console.log(`[CardBinder] Stored price ${finalPrice} for card ${card.id}`);
                                          }
 
                                          return (

@@ -25,6 +25,7 @@ import { FunnelIcon, CurrencyDollarIcon, ClockIcon } from '@heroicons/react/24/o
 import { CollectionType } from '@/services/CollectionService';
 import { shouldUpdatePrices, updatePriceTimestamp, getLastUpdateTimeFormatted, getTimeUntilNextUpdate } from '@/lib/priceUtils';
 import { storeCardPrice, getCardPriceWithFallback, applyPricesToCollection } from '@/lib/pricePersistence';
+import { storePrice, getBestPrice, applyPricesToItems } from '@/lib/robustPriceCache';
 import { PokemonCard } from '@/lib/types';
 import SimpleCardDetailModal from '@/components/SimpleCardDetailModal';
 import { fetchCardDetails } from '@/lib/pokemonApi';
@@ -249,8 +250,9 @@ export default function MyCollection() {
 
   // Apply sorting and filtering to the collection
   const filteredAndSortedCollection = useMemo(() => {
-    // First apply price persistence to ensure all cards have valid prices from the start
+    // First apply BOTH price persistence systems to ensure all cards have valid prices from the start
     let result = applyPricesToCollection(currentCollection);
+    result = applyPricesToItems(result);
 
     // Then apply local updates to the collection
     result = result.map(item => {
@@ -272,11 +274,18 @@ export default function MyCollection() {
       if (localCollectionUpdates.has(priceKey)) {
         const updatedPrice = localCollectionUpdates.get(priceKey);
         updatedItem.market_price = updatedPrice as number;
-        // Store the price in our global cache
+        // Store the price in BOTH our caches for maximum persistence
         storeCardPrice(item.card_id, updatedPrice as number);
+        storePrice(item.card_id, updatedPrice as number);
       } else {
-        // Use the price from our global cache if the current price is missing or zero
-        updatedItem.market_price = getCardPriceWithFallback(item.card_id, updatedItem.market_price);
+        // Use the price from our robust cache first, then fall back to the original cache
+        const bestPrice = getBestPrice(item.card_id, updatedItem.market_price);
+        if (bestPrice > 0) {
+          updatedItem.market_price = bestPrice;
+        } else {
+          // Fall back to the original cache as a last resort
+          updatedItem.market_price = getCardPriceWithFallback(item.card_id, updatedItem.market_price);
+        }
       }
 
       return updatedItem;
@@ -287,8 +296,9 @@ export default function MyCollection() {
       return !localCollectionUpdates.has(item.card_id) || localCollectionUpdates.get(item.card_id)! > 0;
     });
 
-    // Apply our price persistence to ensure all cards have valid prices
+    // Apply BOTH our price persistence systems again to ensure all cards have valid prices
     result = applyPricesToCollection(result);
+    result = applyPricesToItems(result);
 
     // Apply basic search filter if not using advanced filters
     if (!filteredByAdvanced && activeFilter.trim()) {
@@ -471,8 +481,9 @@ export default function MyCollection() {
                   if (updatedPrice !== item.market_price) {
                     // Store the updated price in our local updates
                     priceUpdates.set(`price_${item.card_id}`, updatedPrice);
-                    // Also store in our global cache for persistence
+                    // Store in BOTH our caches for maximum persistence
                     storeCardPrice(item.card_id, updatedPrice);
+                    storePrice(item.card_id, updatedPrice);
                   }
                 }
               });
