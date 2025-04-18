@@ -35,23 +35,23 @@ export default function CardQuantityControls({
   const updateQuantity = useCallback(async (newQuantity: number) => {
     // Don't update if the quantity is the same
     if (newQuantity === quantity) return;
-    
+
     // Don't allow negative quantities
     if (newQuantity < 0) newQuantity = 0;
-    
+
     // Throttle updates to prevent rapid API calls
     const now = Date.now();
     if (now - lastUpdateTime < 300) {
       return;
     }
-    
+
     setLastUpdateTime(now);
     setIsUpdating(true);
     setError(null);
-    
+
     // Optimistic update
     setQuantity(newQuantity);
-    
+
     try {
       const response = await fetch('/api/collections/update-quantity', {
         method: 'PATCH',
@@ -65,17 +65,17 @@ export default function CardQuantityControls({
           quantity: newQuantity
         }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       // Update with the actual quantity from the server
       setQuantity(data.quantity);
-      
+
       // Notify parent component if callback provided
       if (onQuantityChange) {
         onQuantityChange(data.quantity);
@@ -83,7 +83,7 @@ export default function CardQuantityControls({
     } catch (err) {
       console.error('Error updating quantity:', err);
       setError(err instanceof Error ? err.message : 'Failed to update quantity');
-      
+
       // Revert to initial quantity on error
       setQuantity(initialQuantity);
     } finally {
@@ -112,7 +112,7 @@ export default function CardQuantityControls({
         return;
       }
     }
-    
+
     updateQuantity(0);
   }, [quantity, updateQuantity]);
 
@@ -123,13 +123,13 @@ export default function CardQuantityControls({
         <button
           type="button"
           onClick={handleDecrement}
-          className="px-2 py-0.5 text-white bg-red-600 hover:bg-red-700 rounded-l text-sm font-bold leading-none disabled:bg-red-300 disabled:cursor-not-allowed"
+          className="px-2 py-0.5 text-white bg-gray-600 hover:bg-gray-700 rounded-l text-sm font-bold leading-none disabled:bg-gray-300 disabled:cursor-not-allowed"
           title="Decrease quantity"
           disabled={quantity <= 0 || isUpdating}
         >
           -
         </button>
-        <span 
+        <span
           className={`px-3 py-0.5 text-sm font-semibold leading-none min-w-[30px] text-center border-t border-b border-gray-300 ${
             isUpdating ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-700'
           }`}
@@ -139,21 +139,21 @@ export default function CardQuantityControls({
         <button
           type="button"
           onClick={handleIncrement}
-          className="px-2 py-0.5 text-white bg-green-600 hover:bg-green-700 rounded-r text-sm font-bold leading-none disabled:bg-green-300 disabled:cursor-not-allowed"
+          className="px-2 py-0.5 text-white bg-gray-600 hover:bg-gray-700 rounded-r text-sm font-bold leading-none disabled:bg-gray-300 disabled:cursor-not-allowed"
           title="Increase quantity"
           disabled={isUpdating}
         >
           +
         </button>
       </div>
-      
+
       {/* Error message */}
       {error && (
         <div className="text-xs text-red-600 mt-1 text-center">
           Error: {error}
         </div>
       )}
-      
+
       {/* Remove Button */}
       <button
         type="button"

@@ -5,8 +5,8 @@
 // Cache key for last price update timestamp
 const PRICE_UPDATE_TIMESTAMP_KEY = 'last_price_update_timestamp';
 
-// Cache duration for prices (24 hours in milliseconds)
-export const PRICE_CACHE_DURATION = 24 * 60 * 60 * 1000;
+// Cache duration for prices (10 minutes in milliseconds)
+export const PRICE_CACHE_DURATION = 10 * 60 * 1000;
 
 /**
  * Check if prices need to be updated based on the last update timestamp
@@ -14,18 +14,18 @@ export const PRICE_CACHE_DURATION = 24 * 60 * 60 * 1000;
  */
 export function shouldUpdatePrices(): boolean {
   if (typeof window === 'undefined') return false;
-  
+
   try {
     const lastUpdateTimestamp = localStorage.getItem(PRICE_UPDATE_TIMESTAMP_KEY);
-    
+
     if (!lastUpdateTimestamp) {
       return true; // No timestamp found, update needed
     }
-    
+
     const lastUpdate = parseInt(lastUpdateTimestamp, 10);
     const now = Date.now();
-    
-    // Check if 24 hours have passed since the last update
+
+    // Check if 10 minutes have passed since the last update
     return (now - lastUpdate) > PRICE_CACHE_DURATION;
   } catch (error) {
     console.error('Error checking price update timestamp:', error);
@@ -38,7 +38,7 @@ export function shouldUpdatePrices(): boolean {
  */
 export function updatePriceTimestamp(): void {
   if (typeof window === 'undefined') return;
-  
+
   try {
     localStorage.setItem(PRICE_UPDATE_TIMESTAMP_KEY, Date.now().toString());
   } catch (error) {
@@ -52,11 +52,11 @@ export function updatePriceTimestamp(): void {
  */
 export function getLastPriceUpdateTimestamp(): Date | null {
   if (typeof window === 'undefined') return null;
-  
+
   try {
     const timestamp = localStorage.getItem(PRICE_UPDATE_TIMESTAMP_KEY);
     if (!timestamp) return null;
-    
+
     return new Date(parseInt(timestamp, 10));
   } catch (error) {
     console.error('Error getting price update timestamp:', error);
@@ -70,11 +70,11 @@ export function getLastPriceUpdateTimestamp(): Date | null {
  */
 export function getLastUpdateTimeFormatted(): string {
   const timestamp = getLastPriceUpdateTimestamp();
-  
+
   if (!timestamp) {
     return 'Never updated';
   }
-  
+
   // Format the date
   return timestamp.toLocaleString();
 }
@@ -85,22 +85,22 @@ export function getLastUpdateTimeFormatted(): string {
  */
 export function getTimeUntilNextUpdate(): string {
   const timestamp = getLastPriceUpdateTimestamp();
-  
+
   if (!timestamp) {
     return 'Update needed';
   }
-  
+
   const now = Date.now();
   const nextUpdate = timestamp.getTime() + PRICE_CACHE_DURATION;
   const timeRemaining = nextUpdate - now;
-  
+
   if (timeRemaining <= 0) {
     return 'Update needed';
   }
-  
+
   // Convert to hours and minutes
   const hours = Math.floor(timeRemaining / (60 * 60 * 1000));
   const minutes = Math.floor((timeRemaining % (60 * 60 * 1000)) / (60 * 1000));
-  
+
   return `${hours}h ${minutes}m`;
 }

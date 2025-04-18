@@ -343,7 +343,7 @@ export default function MyCollection() {
     setTimeUntilNextUpdate(getTimeUntilNextUpdate());
   }, []);
 
-  // Effect to check if prices need to be updated when component mounts
+  // Effect to check if prices need to be updated when component mounts or when collection changes
   useEffect(() => {
     // Update the price info states
     updatePriceInfoStates();
@@ -354,13 +354,13 @@ export default function MyCollection() {
     }, 60000); // Update every minute
 
     // Check if prices need to be updated
-    if (session && shouldUpdatePrices() && !isUpdatingPrices) {
-      // Auto-update prices when needed
+    if (session && !isUpdatingPrices && currentCollection.length > 0) {
+      // Auto-update prices when viewing collections
       handleUpdateMarketPrices(true);
     }
 
     return () => clearInterval(intervalId);
-  }, [session, isUpdatingPrices, updatePriceInfoStates]);
+  }, [session, isUpdatingPrices, updatePriceInfoStates, currentCollection, activeGroup, activeType]);
 
   // Effect to prefetch card data when filtered collection changes
   useEffect(() => {
@@ -491,19 +491,10 @@ export default function MyCollection() {
                 Move Cards
               </button>
               <div className="flex flex-col">
-                <button
-                  type="button"
-                  onClick={() => handleUpdateMarketPrices(false)}
-                  disabled={isUpdatingPrices}
-                  className="px-3 py-1.5 text-sm font-medium rounded bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
-                  title={`Last updated: ${lastUpdateTime}`}
-                >
+                <div className="text-xs text-gray-600 flex items-center">
                   <CurrencyDollarIcon className="h-4 w-4 mr-1" />
-                  {isUpdatingPrices ? 'Updating...' : 'Update Prices'}
-                </button>
-                <div className="text-xs text-gray-500 mt-1 flex items-center">
-                  <ClockIcon className="h-3 w-3 mr-1" />
-                  <span>Next update: {timeUntilNextUpdate}</span>
+                  <span className="font-medium">Prices: </span>
+                  <span className="ml-1">{isUpdatingPrices ? 'Updating...' : `Last updated: ${lastUpdateTime}`}</span>
                 </div>
               </div>
             </div>

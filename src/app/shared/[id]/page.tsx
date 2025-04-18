@@ -49,7 +49,7 @@ export default function SharedCollectionPage() {
   const params = useParams();
   const shareId = params.id as string;
   const { session } = useAuth();
-  const { groups, importCollection } = useCollections();
+  const { importCollection } = useCollections();
 
   const [collection, setCollection] = useState<SharedCollection | null>(null);
   const [cards, setCards] = useState<PokemonCard[]>([]);
@@ -253,12 +253,39 @@ export default function SharedCollectionPage() {
 
     try {
       // Use the context function to import the collection
+      // First, fetch the latest card data to ensure we have current pricing
+      const cardIds = collection.data.items.map(item => item.card_id).join(',');
+      const cardsResponse = await fetch(`/api/cards?ids=${cardIds}&forceRefresh=true`);
+
+      if (!cardsResponse.ok) {
+        throw new Error('Failed to fetch updated card data for import');
+      }
+
+      const cardsData = await cardsResponse.json();
+      const cardsWithPricing = new Map();
+
+      // Create a map of card IDs to their current market prices
+      cardsData.cards.forEach((card: any) => {
+        let marketPrice = 0;
+        if (card.tcgplayer?.prices) {
+          const prices = card.tcgplayer.prices;
+          // Get the highest available market price
+          if (prices.normal?.market) marketPrice = Math.max(marketPrice, prices.normal.market);
+          if (prices.holofoil?.market) marketPrice = Math.max(marketPrice, prices.holofoil.market);
+          if (prices.reverseHolofoil?.market) marketPrice = Math.max(marketPrice, prices.reverseHolofoil.market);
+          if (prices.firstEdition?.market) marketPrice = Math.max(marketPrice, prices.firstEdition.market);
+        }
+        cardsWithPricing.set(card.id, marketPrice);
+      });
+
+      // Now import with the updated pricing information
       const result = await importCollection(
         collection.data.items.map(item => ({
           card_id: item.card_id,
           card_name: item.card_name,
           card_image_small: item.card_image_small,
           quantity: item.quantity,
+          market_price: cardsWithPricing.get(item.card_id) || 0,
           collection_type: selectedCollectionType // Use the user-selected collection type
         })),
         selectedGroup,
