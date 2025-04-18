@@ -12,33 +12,7 @@ interface CardPricingProps {
 
 // Helper function to get the most relevant price data
 const getDisplayPrices = (prices: CardPrices | undefined | null, cardId?: string): PriceData | null => {
-  // If we have a card ID, try to get the price from our robust cache first
-  let robustCachedPrice: number = 0;
-  if (cardId) {
-    robustCachedPrice = getBestPrice(cardId, null);
-  }
-
-  // If we have a valid robust cached price, we'll use it for the market price
-  // but we'll still try to get the low, mid, and high prices from the API data
-  let cachedMarketPrice = 0;
-  if (robustCachedPrice > 0) {
-    console.log(`[CardPricing] Using robust cached price ${robustCachedPrice} for card ${cardId}`);
-    cachedMarketPrice = robustCachedPrice;
-  }
-
-  // Try the original cache as a fallback
-  let originalCachedPrice: number | undefined;
-  if (cardId) {
-    originalCachedPrice = getCardPrice(cardId);
-  }
-
-  // If we have a valid original cached price and no robust cached price, use it
-  if (cachedMarketPrice === 0 && originalCachedPrice !== undefined && originalCachedPrice > 0) {
-    console.log(`[CardPricing] Using original cached price ${originalCachedPrice} for card ${cardId}`);
-    cachedMarketPrice = originalCachedPrice;
-  }
-
-  // If no cached price or no card ID, proceed with normal logic
+  // If no prices, return null
   if (!prices) return null;
 
   // Find the first available price data with a market price
@@ -51,40 +25,10 @@ const getDisplayPrices = (prices: CardPrices | undefined | null, cardId?: string
   else if (prices.firstEditionNormal?.market) priceData = prices.firstEditionNormal;
   else priceData = Object.values(prices).find(priceData => priceData?.market != null) ?? null;
 
-  // Store the price in BOTH our caches if it's valid and we have a card ID
+  // Store the price in our caches if it's valid and we have a card ID
   if (priceData?.market && cardId) {
-    console.log(`[CardPricing] Storing API price ${priceData.market} for card ${cardId}`);
     storeCardPrice(cardId, priceData.market);
     storePrice(cardId, priceData.market);
-  } else if (cardId && !priceData?.market) {
-    // If we don't have a valid price from the API, try to get it from our fallback cache
-    const fallbackPrice = getCardPriceWithFallback(cardId, null);
-    if (fallbackPrice > 0 && cachedMarketPrice === 0) {
-      console.log(`[CardPricing] Using fallback price ${fallbackPrice} for card ${cardId}`);
-      // Also store it in our robust cache for future use
-      storePrice(cardId, fallbackPrice);
-      cachedMarketPrice = fallbackPrice;
-    }
-  }
-
-  // If we have a cached market price, use it instead of the API market price
-  if (cachedMarketPrice > 0) {
-    // If we have price data from the API, use it for low, mid, and high prices
-    if (priceData) {
-      return {
-        ...priceData,
-        market: cachedMarketPrice
-      };
-    } else {
-      // If we don't have price data from the API, create a new price data object
-      return {
-        market: cachedMarketPrice,
-        low: null,
-        mid: null,
-        high: null,
-        directLow: null
-      };
-    }
   }
 
   return priceData;

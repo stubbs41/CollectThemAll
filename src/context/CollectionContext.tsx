@@ -2,7 +2,7 @@
 
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { PokemonCard } from '@/lib/types';
-import { storePrice, getBestPrice, applyPricesToItems, initializeCache } from '@/lib/robustPriceCache';
+import { storePrice } from '@/lib/robustPriceCache';
 import CollectionService, {
   CollectionType,
   CollectionItem,
@@ -77,9 +77,6 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   useEffect(() => {
     const loadCollections = async () => {
       setIsLoading(true);
-
-      // Ensure price cache is initialized before loading collections
-      await initializeCache();
 
       try {
         // Fetch collection groups
@@ -183,9 +180,6 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   const refreshCollections = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Ensure price cache is initialized before refreshing collections
-      await initializeCache();
-
       collectionService.invalidateCache();
 
       // Fetch collection groups
@@ -208,16 +202,10 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         const haveValue = groupInfo?.have_value || 0;
         const wantValue = groupInfo?.want_value || 0;
 
-        // Apply price persistence to the cards before adding to collections
-        // Convert Map to array, apply price persistence, then convert back to Map
+        // Store prices for future reference but don't modify the database values
         const haveCards = new Map();
         Array.from(groupData.have.entries()).forEach(([cardId, card]) => {
-          // Apply price persistence
-          const bestPrice = getBestPrice(cardId, card.market_price);
-          if (bestPrice > 0) {
-            card.market_price = bestPrice;
-          }
-          // Store the price for future use
+          // Store the price for future use if it's valid
           if (card.market_price && card.market_price > 0) {
             storePrice(cardId, card.market_price);
           }
@@ -226,12 +214,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
 
         const wantCards = new Map();
         Array.from(groupData.want.entries()).forEach(([cardId, card]) => {
-          // Apply price persistence
-          const bestPrice = getBestPrice(cardId, card.market_price);
-          if (bestPrice > 0) {
-            card.market_price = bestPrice;
-          }
-          // Store the price for future use
+          // Store the price for future use if it's valid
           if (card.market_price && card.market_price > 0) {
             storePrice(cardId, card.market_price);
           }

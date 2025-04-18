@@ -554,9 +554,6 @@ export default function MyCollection() {
 
     setIsUpdatingPrices(true);
 
-    // Ensure price cache is initialized before updating prices
-    await initializeCache();
-
     // Only show message for manual updates, not auto-updates
     if (!isAutoUpdate) {
       setPriceUpdateMessage('Updating market prices...');
@@ -686,23 +683,13 @@ export default function MyCollection() {
 
   // Effect to trigger price updates when needed
   useEffect(() => {
-    // Initialize price cache when session changes
-    const initPrices = async () => {
-      if (session) {
-        // Ensure price cache is initialized
-        await initializeCache();
-
-        // Only auto-update if we haven't already updated for this collection view
-        // and we have cards to update
-        if (!isUpdatingPrices && currentCollection.length > 0 && !hasAutoUpdated) {
-          // Auto-update prices when viewing collections
-          handleUpdateMarketPrices(true);
-          setHasAutoUpdated(true);
-        }
-      }
-    };
-
-    initPrices();
+    // Only auto-update if we haven't already updated for this collection view
+    // and we have cards to update
+    if (session && !isUpdatingPrices && currentCollection.length > 0 && !hasAutoUpdated) {
+      // Auto-update prices when viewing collections
+      handleUpdateMarketPrices(true);
+      setHasAutoUpdated(true);
+    }
   }, [session, isUpdatingPrices, currentCollection, hasAutoUpdated, handleUpdateMarketPrices]);
 
   // Effect to prefetch card data when filtered collection changes
@@ -1030,26 +1017,12 @@ export default function MyCollection() {
                 {/* Check for price updates in localCollectionUpdates or global cache */}
                 <span className="text-xs font-medium text-gray-700">
                   ${(() => {
-                    // First check local updates
+                    // First check local updates (from the current session)
                     if (localCollectionUpdates.has(`price_${item.card_id}`)) {
                       return localCollectionUpdates.get(`price_${item.card_id}`);
                     }
 
-                    // Then check robust cache
-                    const robustPrice = getBestPrice(item.card_id, item.market_price);
-                    if (robustPrice > 0) {
-                      return robustPrice;
-                    }
-
-                    // Then check original cache
-                    const fallbackPrice = getCardPriceWithFallback(item.card_id, item.market_price);
-                    if (fallbackPrice > 0) {
-                      // Store in robust cache for future use
-                      storePrice(item.card_id, fallbackPrice);
-                      return fallbackPrice;
-                    }
-
-                    // Last resort: use market_price from database
+                    // Use market_price from database
                     return item.market_price || 0;
                   })().toFixed(2)}
                 </span>
