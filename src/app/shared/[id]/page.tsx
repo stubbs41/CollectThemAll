@@ -7,9 +7,11 @@ import CardBinder from '@/components/CardBinder';
 import { PokemonCard } from '@/lib/types';
 import { CollectionType } from '@/services/CollectionService';
 import { useAuth } from '@/context/AuthContext';
+import { useCollections } from '@/context/CollectionContext';
 import CommentsSection from '@/components/collection/CommentsSection';
 import AnalyticsDashboard from '@/components/collection/AnalyticsDashboard';
 import { enableRealtimeForComments } from '@/lib/realtimeClient';
+import CollectionSelector from '@/components/card/CollectionSelector';
 
 interface SharedCollectionItem {
   card_id: string;
@@ -47,6 +49,7 @@ export default function SharedCollectionPage() {
   const params = useParams();
   const shareId = params.id as string;
   const { session } = useAuth();
+  const { groups, importCollection } = useCollections();
 
   const [collection, setCollection] = useState<SharedCollection | null>(null);
   const [cards, setCards] = useState<PokemonCard[]>([]);
@@ -57,6 +60,10 @@ export default function SharedCollectionPage() {
   const [showComments, setShowComments] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<string>('Default');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const CARDS_PER_PAGE = 32;
 
@@ -85,6 +92,9 @@ export default function SharedCollectionPage() {
         }
 
         setCollection(data.share);
+
+        // Set the default collection name to the sender's collection name
+        setSelectedGroup(data.share.collection_name || 'Default');
 
         // Check if current user is the owner
         if (session && session.user && data.share.user_id === session.user.id) {
@@ -236,27 +246,29 @@ export default function SharedCollectionPage() {
   const handleImportCollection = async () => {
     if (!collection) return;
 
-    try {
-      const response = await fetch('/api/collections/bulk-import', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          collection_type: collection.collection_type,
-          group_name: collection.collection_name,
-          items: collection.data.items
-        }),
-      });
+    setIsImporting(true);
+    setImportSuccess(null);
+    setImportError(null);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to import collection');
+    try {
+      // Use the context function to import the collection
+      const result = await importCollection(
+        collection.data.items.map(item => ({
+          card_id: item.card_id,
+          card_name: item.card_name,
+          card_image_small: item.card_image_small,
+          quantity: item.quantity,
+          collection_type: collection.collection_type
+        })),
+        selectedGroup,
+        false // Don't create a new group if it doesn't exist
+      );
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to import collection');
       }
 
-      const data = await response.json();
-      alert(`Successfully imported ${data.importedCount} cards to your collection!`);
+      setImportSuccess(`Successfully imported cards to your "${selectedGroup}" collection!`);
 
       // Track import event for analytics
       try {
@@ -269,7 +281,7 @@ export default function SharedCollectionPage() {
             shareId,
             eventType: 'import',
             metadata: {
-              importedCount: data.importedCount,
+              targetGroup: selectedGroup,
               collectionType: collection.collection_type
             }
           }),
@@ -281,7 +293,9 @@ export default function SharedCollectionPage() {
 
     } catch (err) {
       console.error('Error importing collection:', err);
-      alert(`Failed to import collection: ${(err as Error).message}`);
+      setImportError((err as Error).message || 'Failed to import collection');
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -349,34 +363,83 @@ export default function SharedCollectionPage() {
             </p>
           </div>
 
-          <div className="mb-6 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleImportCollection}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow"
-            >
-              Import to My Collection
-            </button>
+          <div className="mb-6">
+            {/* Collection selector and import button */}
+            <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Import to Collection</h3>
 
-            {collection.allow_comments && (
-              <button
-                type="button"
-                onClick={() => setShowComments(!showComments)}
-                className={`px-4 py-2 rounded-lg shadow ${showComments ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-              >
-                {showComments ? 'Hide Comments' : 'Show Comments'}
-              </button>
-            )}
+              {!session ? (
+                <div className="text-center py-4">
+                  <p className="text-gray-600 mb-3">Sign in to import this collection to your account</p>
+                  <Link
+                    href={`/?redirect=${encodeURIComponent(`/shared/${shareId}`)}`}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow inline-block"
+                  >
+                    Sign In to Import
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                    <div className="md:col-span-2">
+                      <CollectionSelector
+                        onSelect={setSelectedGroup}
+                        selectedGroup={selectedGroup}
+                        label="Select Collection Group"
+                      />
+                    </div>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={handleImportCollection}
+                        disabled={isImporting}
+                        className={`w-full px-4 py-2 rounded-lg shadow text-white ${isImporting
+                          ? 'bg-gray-400 cursor-wait'
+                          : 'bg-green-600 hover:bg-green-700'}`}
+                      >
+                        {isImporting ? 'Importing...' : 'Import to Collection'}
+                      </button>
+                    </div>
+                  </div>
 
-            {isOwner && (
-              <button
-                type="button"
-                onClick={() => setShowAnalytics(!showAnalytics)}
-                className={`px-4 py-2 rounded-lg shadow ${showAnalytics ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-              >
-                {showAnalytics ? 'Hide Analytics' : 'View Analytics'}
-              </button>
-            )}
+                  {/* Success/Error messages */}
+                  {importSuccess && (
+                    <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
+                      {importSuccess}
+                    </div>
+                  )}
+
+                  {importError && (
+                    <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                      Error: {importError}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Other action buttons */}
+            <div className="flex flex-wrap gap-2">
+              {collection.allow_comments && (
+                <button
+                  type="button"
+                  onClick={() => setShowComments(!showComments)}
+                  className={`px-4 py-2 rounded-lg shadow ${showComments ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                >
+                  {showComments ? 'Hide Comments' : 'Show Comments'}
+                </button>
+              )}
+
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={() => setShowAnalytics(!showAnalytics)}
+                  className={`px-4 py-2 rounded-lg shadow ${showAnalytics ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                >
+                  {showAnalytics ? 'Hide Analytics' : 'View Analytics'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

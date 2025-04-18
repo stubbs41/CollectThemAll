@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useCollections } from '@/context/CollectionContext';
-import { FolderIcon, MagnifyingGlassIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
+import { FolderIcon, MagnifyingGlassIcon, PlusCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface CollectionSelectorProps {
   onSelect: (groupName: string) => void;
@@ -17,10 +17,15 @@ const CollectionSelector: React.FC<CollectionSelectorProps> = ({
   label = 'Select Collection',
   className = ''
 }) => {
-  const { groups } = useCollections();
+  const { groups, createCollectionGroup } = useCollections();
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredGroups, setFilteredGroups] = useState<string[]>(groups);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupDescription, setNewGroupDescription] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   // Filter groups when search term changes
   useEffect(() => {
@@ -38,6 +43,39 @@ const CollectionSelector: React.FC<CollectionSelectorProps> = ({
     onSelect(group);
     setShowDropdown(false);
     setSearchTerm('');
+  };
+
+  // Handle creating a new collection group
+  const handleCreateGroup = async () => {
+    if (!newGroupName.trim()) {
+      setCreateError('Group name is required');
+      return;
+    }
+
+    setIsCreating(true);
+    setCreateError(null);
+
+    try {
+      const result = await createCollectionGroup(newGroupName.trim(), newGroupDescription.trim() || undefined);
+
+      if (result.success) {
+        // Select the newly created group
+        onSelect(newGroupName.trim());
+
+        // Reset form and close it
+        setNewGroupName('');
+        setNewGroupDescription('');
+        setShowCreateForm(false);
+        setShowDropdown(false);
+      } else {
+        setCreateError(result.error || 'Failed to create collection group');
+      }
+    } catch (error: any) {
+      console.error('Error creating collection group:', error);
+      setCreateError(error.message || 'An unexpected error occurred');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   // Create a ref for the dropdown container
@@ -109,8 +147,10 @@ const CollectionSelector: React.FC<CollectionSelectorProps> = ({
                   type="button"
                   onClick={() => setShowDropdown(false)}
                   className="text-gray-400 hover:text-gray-600"
+                  title="Close selector"
+                  aria-label="Close selector"
                 >
-                  &times;
+                  <XMarkIcon className="h-5 w-5" />
                 </button>
               </div>
 
@@ -156,19 +196,98 @@ const CollectionSelector: React.FC<CollectionSelectorProps> = ({
                 </ul>
               </div>
 
-              {/* Create new collection button */}
+              {/* Create new collection section */}
               <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
-                <button
-                  type="button"
-                  className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
-                  onClick={() => {
-                    // TODO: Implement create new collection functionality
-                    alert('Create new collection feature coming soon!');
-                  }}
-                >
-                  <PlusCircleIcon className="h-4 w-4 mr-1" />
-                  Create New Collection
-                </button>
+                {!showCreateForm ? (
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
+                    onClick={() => setShowCreateForm(true)}
+                  >
+                    <PlusCircleIcon className="h-4 w-4 mr-1" />
+                    Create New Collection
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-sm font-medium text-gray-700">Create New Collection</h4>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCreateForm(false);
+                          setNewGroupName('');
+                          setNewGroupDescription('');
+                          setCreateError(null);
+                        }}
+                        className="text-gray-400 hover:text-gray-600"
+                        title="Close form"
+                        aria-label="Close form"
+                      >
+                        <XMarkIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    <div>
+                      <label htmlFor="new-group-name" className="block text-xs font-medium text-gray-700 mb-1">
+                        Collection Name *
+                      </label>
+                      <input
+                        type="text"
+                        id="new-group-name"
+                        value={newGroupName}
+                        onChange={(e) => setNewGroupName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder="My New Collection"
+                        disabled={isCreating}
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="new-group-description" className="block text-xs font-medium text-gray-700 mb-1">
+                        Description (Optional)
+                      </label>
+                      <textarea
+                        id="new-group-description"
+                        value={newGroupDescription}
+                        onChange={(e) => setNewGroupDescription(e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder="Describe your collection"
+                        disabled={isCreating}
+                      />
+                    </div>
+
+                    {createError && (
+                      <div className="text-xs text-red-600">
+                        {createError}
+                      </div>
+                    )}
+
+                    <div className="flex space-x-2">
+                      <button
+                        type="button"
+                        onClick={handleCreateGroup}
+                        disabled={isCreating || !newGroupName.trim()}
+                        className="flex-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      >
+                        {isCreating ? 'Creating...' : 'Create'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCreateForm(false);
+                          setNewGroupName('');
+                          setNewGroupDescription('');
+                          setCreateError(null);
+                        }}
+                        disabled={isCreating}
+                        className="flex-1 px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
