@@ -9,20 +9,41 @@ const PRICE_STORAGE_KEY = 'robustCardPrices';
 // In-memory cache for faster access
 let inMemoryPriceCache: Record<string, number> = {};
 
-// Initialize the cache from localStorage
-if (typeof window !== 'undefined') {
-  try {
-    const storedPrices = localStorage.getItem(PRICE_STORAGE_KEY);
-    if (storedPrices) {
-      inMemoryPriceCache = JSON.parse(storedPrices);
-      console.log(`[RobustPriceCache] Loaded ${Object.keys(inMemoryPriceCache).length} card prices from localStorage`);
+// Flag to track if cache has been initialized
+let isCacheInitialized = false;
+
+/**
+ * Initialize the cache from localStorage
+ * @returns A promise that resolves when the cache is initialized
+ */
+export function initializeCache(): Promise<void> {
+  return new Promise((resolve) => {
+    if (isCacheInitialized) {
+      resolve();
+      return;
     }
-  } catch (error) {
-    console.error('[RobustPriceCache] Error loading prices from localStorage:', error);
-    // Initialize with empty object if there's an error
-    inMemoryPriceCache = {};
-  }
+
+    if (typeof window !== 'undefined') {
+      try {
+        const storedPrices = localStorage.getItem(PRICE_STORAGE_KEY);
+        if (storedPrices) {
+          inMemoryPriceCache = JSON.parse(storedPrices);
+          console.log(`[RobustPriceCache] Loaded ${Object.keys(inMemoryPriceCache).length} card prices from localStorage`);
+        }
+      } catch (error) {
+        console.error('[RobustPriceCache] Error loading prices from localStorage:', error);
+        // Initialize with empty object if there's an error
+        inMemoryPriceCache = {};
+      }
+    }
+
+    isCacheInitialized = true;
+    resolve();
+  });
 }
+
+// Initialize the cache when the module is loaded
+initializeCache();
 
 /**
  * Save the in-memory cache to localStorage

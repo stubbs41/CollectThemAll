@@ -25,7 +25,7 @@ import { FunnelIcon, CurrencyDollarIcon, ClockIcon } from '@heroicons/react/24/o
 import { CollectionType } from '@/services/CollectionService';
 import { shouldUpdatePrices, updatePriceTimestamp, getLastUpdateTimeFormatted, getTimeUntilNextUpdate } from '@/lib/priceUtils';
 import { storeCardPrice, getCardPriceWithFallback, applyPricesToCollection } from '@/lib/pricePersistence';
-import { storePrice, getBestPrice, applyPricesToItems } from '@/lib/robustPriceCache';
+import { storePrice, getBestPrice, applyPricesToItems, initializeCache } from '@/lib/robustPriceCache';
 import { PokemonCard } from '@/lib/types';
 import SimpleCardDetailModal from '@/components/SimpleCardDetailModal';
 import { fetchCardDetails } from '@/lib/pokemonApi';
@@ -554,6 +554,9 @@ export default function MyCollection() {
 
     setIsUpdatingPrices(true);
 
+    // Ensure price cache is initialized before updating prices
+    await initializeCache();
+
     // Only show message for manual updates, not auto-updates
     if (!isAutoUpdate) {
       setPriceUpdateMessage('Updating market prices...');
@@ -683,13 +686,23 @@ export default function MyCollection() {
 
   // Effect to trigger price updates when needed
   useEffect(() => {
-    // Only auto-update if we haven't already updated for this collection view
-    // and we have cards to update
-    if (session && !isUpdatingPrices && currentCollection.length > 0 && !hasAutoUpdated) {
-      // Auto-update prices when viewing collections
-      handleUpdateMarketPrices(true);
-      setHasAutoUpdated(true);
-    }
+    // Initialize price cache when session changes
+    const initPrices = async () => {
+      if (session) {
+        // Ensure price cache is initialized
+        await initializeCache();
+
+        // Only auto-update if we haven't already updated for this collection view
+        // and we have cards to update
+        if (!isUpdatingPrices && currentCollection.length > 0 && !hasAutoUpdated) {
+          // Auto-update prices when viewing collections
+          handleUpdateMarketPrices(true);
+          setHasAutoUpdated(true);
+        }
+      }
+    };
+
+    initPrices();
   }, [session, isUpdatingPrices, currentCollection, hasAutoUpdated, handleUpdateMarketPrices]);
 
   // Effect to prefetch card data when filtered collection changes

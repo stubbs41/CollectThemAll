@@ -1,0 +1,147 @@
+13:13:03.409 Navigated to https://poke-binder-flax.vercel.app/collections
+13:13:03.592 8724-001cec03638626f0.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 [RobustPriceCache] Loaded 165 card prices from localStorage
+13:13:03.593 9797-8ffd0b75f4f77936.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Loaded 40 card prices from localStorage
+13:13:03.599 8724-001cec03638626f0.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Initializing auth state...
+13:13:03.622 8724-001cec03638626f0.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Auth state change: SIGNED_IN Session exists
+13:13:03.636 8724-001cec03638626f0.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Initial session: Found
+13:13:03.638 8724-001cec03638626f0.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Auth state change: INITIAL_SESSION Session exists
+13:13:03.687 index.ts:5 Loaded contentScript
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.802 Fetch finished loading: GET "<URL>".
+13:13:03.938 layout-4569b1b428910db5.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Pokemon TCG API key verified successfully
+13:13:04.546 Fetch finished loading: PATCH "<URL>".
+13:13:04.546 Fetch finished loading: PATCH "<URL>".
+13:13:04.546 Fetch finished loading: PATCH "<URL>".
+13:13:04.546 Fetch finished loading: PATCH "<URL>".
+13:13:04.546 Fetch finished loading: PATCH "<URL>".
+13:13:04.546 Fetch finished loading: PATCH "<URL>".
+13:13:04.546 Fetch finished loading: PATCH "<URL>".
+13:13:04.546 Fetch finished loading: PATCH "<URL>".
+13:13:04.546 Fetch finished loading: PATCH "<URL>".
+13:13:04.414 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv6-21
+13:13:04.415 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv5-123
+13:13:04.415 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv5-38
+13:13:04.415 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv5-206
+13:13:04.415 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: svp-144
+13:13:04.415 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv5-204
+13:13:04.416 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv6-112
+13:13:04.416 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv6-25
+13:13:04.436 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv6-21 in local GitHub data
+13:13:04.436 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv5-123 in local GitHub data
+13:13:04.436 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv5-38 in local GitHub data
+13:13:04.437 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv5-206 in local GitHub data
+13:13:04.437 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card svp-144 in local GitHub data
+13:13:04.437 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv5-204 in local GitHub data
+13:13:04.437 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv6-112 in local GitHub data
+13:13:04.437 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv6-25 in local GitHub data
+13:13:04.472 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv6-21
+13:13:04.472 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv5-123
+13:13:04.472 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv5-38
+13:13:04.473 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv5-206
+13:13:04.473 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: svp-144
+13:13:04.473 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv5-204
+13:13:04.473 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv6-112
+13:13:04.473 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv6-25
+13:13:04.480 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv6-21 in local GitHub data
+13:13:04.480 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv5-123 in local GitHub data
+13:13:04.481 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv5-38 in local GitHub data
+13:13:04.481 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv5-206 in local GitHub data
+13:13:04.481 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card svp-144 in local GitHub data
+13:13:04.481 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv5-204 in local GitHub data
+13:13:04.481 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv6-112 in local GitHub data
+13:13:04.482 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv6-25 in local GitHub data
+13:13:13.474 ActiveCheckHelper.ts:21 received intentional event
+13:13:14.475 ActiveCheckHelper.ts:8 updating page active status
+13:13:15.092 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv5-99
+13:13:15.093 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: ecard3-47
+13:13:15.093 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Fetching details for card ID: sv6-22
+13:13:15.097 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv5-99 in local GitHub data
+13:13:15.098 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card ecard3-47 in local GitHub data
+13:13:15.098 9586-01a83da4edb25254.js?dpl=dpl_CiBnCdfjKpzs5Fk3DbgCyRoym27t:1 Found card sv6-22 in local GitHub data
+13:13:19.258 ActiveCheckHelper.ts:8 updating page active status
+13:13:25.108 ActiveCheckHelper.ts:8 updating page active status

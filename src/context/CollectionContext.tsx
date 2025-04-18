@@ -2,7 +2,7 @@
 
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { PokemonCard } from '@/lib/types';
-import { storePrice, getBestPrice, applyPricesToItems } from '@/lib/robustPriceCache';
+import { storePrice, getBestPrice, applyPricesToItems, initializeCache } from '@/lib/robustPriceCache';
 import CollectionService, {
   CollectionType,
   CollectionItem,
@@ -77,6 +77,9 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   useEffect(() => {
     const loadCollections = async () => {
       setIsLoading(true);
+
+      // Ensure price cache is initialized before loading collections
+      await initializeCache();
 
       try {
         // Fetch collection groups
@@ -180,6 +183,9 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   const refreshCollections = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Ensure price cache is initialized before refreshing collections
+      await initializeCache();
+
       collectionService.invalidateCache();
 
       // Fetch collection groups
