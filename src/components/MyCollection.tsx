@@ -88,6 +88,9 @@ export default function MyCollection() {
   // State for tracking when collections were last refreshed
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(Date.now());
 
+  // State for locally updated collection data
+  const [localCollectionUpdates, setLocalCollectionUpdates] = useState<Map<string, number>>(new Map());
+
   // State for sorting and filtering
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [searchQuery, setSearchQuery] = useState('');
@@ -179,8 +182,25 @@ export default function MyCollection() {
 
   // Apply sorting and filtering to the collection
   const filteredAndSortedCollection = useMemo(() => {
-    // First apply search filter
-    let result = currentCollection;
+    // First apply local updates to the collection
+    let result = currentCollection.map(item => {
+      // Check if we have a local update for this card
+      if (localCollectionUpdates.has(item.card_id)) {
+        const updatedQuantity = localCollectionUpdates.get(item.card_id);
+        // If quantity is 0, we'll filter it out later
+        if (updatedQuantity === 0) {
+          return item;
+        }
+        // Otherwise update the quantity
+        return { ...item, quantity: updatedQuantity! };
+      }
+      return item;
+    });
+
+    // Filter out cards with quantity 0 (marked for removal)
+    result = result.filter(item => {
+      return !localCollectionUpdates.has(item.card_id) || localCollectionUpdates.get(item.card_id)! > 0;
+    });
 
     // Apply basic search filter if not using advanced filters
     if (!filteredByAdvanced && activeFilter.trim()) {
@@ -298,13 +318,24 @@ export default function MyCollection() {
         }
       }
     });
-  }, [currentCollection, activeFilter, sortBy, filteredByAdvanced, advancedFilterCriteria, advancedSortBy]);
+  }, [currentCollection, activeFilter, sortBy, filteredByAdvanced, advancedFilterCriteria, advancedSortBy, localCollectionUpdates]);
 
   // Function to handle quantity changes
   const handleQuantityChange = useCallback((cardId: string, newQuantity: number) => {
-    // If quantity changed to 0, the card will be removed from the collection
-    // We should refresh the collection after a short delay to reflect this
+    // Update the local collection updates map
+    const newUpdates = new Map(localCollectionUpdates);
     if (newQuantity === 0) {
+      // Mark for removal
+      newUpdates.set(cardId, 0);
+    } else {
+      // Update quantity
+      newUpdates.set(cardId, newQuantity);
+    }
+    setLocalCollectionUpdates(newUpdates);
+
+    // If quantity changed to 0, we need to refresh the collection to remove the card
+    if (newQuantity === 0) {
+      // Debounce the refresh to avoid multiple refreshes
       const timeSinceLastRefresh = Date.now() - lastRefreshTime;
       if (timeSinceLastRefresh > 2000) {
         refreshCollections();
@@ -317,7 +348,7 @@ export default function MyCollection() {
         }, 2000);
       }
     }
-  }, [refreshCollections, lastRefreshTime]);
+  }, [localCollectionUpdates, refreshCollections, lastRefreshTime]);
 
   // Handle opening the create group modal
   const handleOpenCreateGroupModal = () => {
@@ -351,7 +382,11 @@ export default function MyCollection() {
     if (isUpdatingPrices) return;
 
     setIsUpdatingPrices(true);
-    setPriceUpdateMessage(isAutoUpdate ? 'Auto-updating market prices...' : 'Updating market prices...');
+
+    // Only show message for manual updates, not auto-updates
+    if (!isAutoUpdate) {
+      setPriceUpdateMessage('Updating market prices...');
+    }
 
     try {
       const response = await fetch(`/api/collections/update-prices?groupName=${encodeURIComponent(activeGroup)}`);
@@ -362,7 +397,16 @@ export default function MyCollection() {
       }
 
       const data = await response.json();
-      setPriceUpdateMessage(`Successfully updated ${data.updated} of ${data.total} cards`);
+
+      // Only show success message for manual updates
+      if (!isAutoUpdate) {
+        setPriceUpdateMessage(`Successfully updated ${data.updated} of ${data.total} cards`);
+
+        // Clear message after 3 seconds for manual updates
+        setTimeout(() => {
+          setPriceUpdateMessage(null);
+        }, 3000);
+      }
 
       // Update the price timestamp
       updatePriceTimestamp();
@@ -371,19 +415,18 @@ export default function MyCollection() {
       // Refresh collections to show updated prices, but don't trigger another auto-update
       setHasAutoUpdated(true); // Set this before refreshing to prevent loop
       await refreshCollections();
-
-      // Clear message after 5 seconds
-      setTimeout(() => {
-        setPriceUpdateMessage(null);
-      }, 5000);
     } catch (err) {
       console.error('Error updating market prices:', err);
-      setPriceUpdateMessage(`Error: ${err instanceof Error ? err.message : 'Failed to update prices'}`);
 
-      // Clear error message after 5 seconds
-      setTimeout(() => {
-        setPriceUpdateMessage(null);
-      }, 5000);
+      // Only show error message for manual updates
+      if (!isAutoUpdate) {
+        setPriceUpdateMessage(`Error: ${err instanceof Error ? err.message : 'Failed to update prices'}`);
+
+        // Clear error message after 3 seconds
+        setTimeout(() => {
+          setPriceUpdateMessage(null);
+        }, 3000);
+      }
     } finally {
       setIsUpdatingPrices(false);
     }
@@ -510,6 +553,14 @@ export default function MyCollection() {
                   <CurrencyDollarIcon className="h-4 w-4 mr-1" />
                   <span className="font-medium">Prices: </span>
                   <span className="ml-1">{isUpdatingPrices ? 'Updating...' : `Last updated: ${lastUpdateTime}`}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateMarketPrices(false)}
+                    disabled={isUpdatingPrices}
+                    className="ml-2 text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {isUpdatingPrices ? 'Updating...' : 'Update Now'}
+                  </button>
                 </div>
               </div>
             </div>

@@ -123,7 +123,7 @@ export default function CardQuantityControls({
         <button
           type="button"
           onClick={handleDecrement}
-          className="px-2 py-0.5 text-white bg-gray-600 hover:bg-gray-700 rounded-l text-sm font-bold leading-none disabled:bg-gray-300 disabled:cursor-not-allowed"
+          className="px-2 py-0.5 text-white bg-red-600 hover:bg-red-700 rounded-l text-sm font-bold leading-none disabled:bg-gray-300 disabled:cursor-not-allowed"
           title="Decrease quantity"
           disabled={quantity <= 0 || isUpdating}
         >
@@ -131,7 +131,7 @@ export default function CardQuantityControls({
         </button>
         <span
           className={`px-3 py-0.5 text-sm font-semibold leading-none min-w-[30px] text-center border-t border-b border-gray-300 ${
-            isUpdating ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-700'
+            isUpdating ? 'bg-blue-100 text-blue-800' : 'bg-white text-gray-700'
           }`}
         >
           {quantity}
@@ -139,7 +139,7 @@ export default function CardQuantityControls({
         <button
           type="button"
           onClick={handleIncrement}
-          className="px-2 py-0.5 text-white bg-gray-600 hover:bg-gray-700 rounded-r text-sm font-bold leading-none disabled:bg-gray-300 disabled:cursor-not-allowed"
+          className="px-2 py-0.5 text-white bg-blue-600 hover:bg-blue-700 rounded-r text-sm font-bold leading-none disabled:bg-gray-300 disabled:cursor-not-allowed"
           title="Increase quantity"
           disabled={isUpdating}
         >
