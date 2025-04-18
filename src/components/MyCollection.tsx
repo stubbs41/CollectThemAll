@@ -21,11 +21,11 @@ import AdvancedFilterPanel, { FilterCriteria, SortOption as AdvancedSortOption }
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { preloadImages } from '@/lib/utils';
-import { FunnelIcon, CurrencyDollarIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { FunnelIcon, CurrencyDollarIcon, ClockIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { CollectionType } from '@/services/CollectionService';
 import { shouldUpdatePrices, updatePriceTimestamp, getLastUpdateTimeFormatted, getTimeUntilNextUpdate } from '@/lib/priceUtils';
 import { storeCardPrice, getCardPriceWithFallback, applyPricesToCollection } from '@/lib/pricePersistence';
-import { storePrice, getBestPrice, applyPricesToItems, initializeCache } from '@/lib/robustPriceCache';
+import { storePrice, applyPricesToItems, initializeCache } from '@/lib/robustPriceCache';
 import { PokemonCard } from '@/lib/types';
 import SimpleCardDetailModal from '@/components/SimpleCardDetailModal';
 import { fetchCardDetails } from '@/lib/pokemonApi';
@@ -134,8 +134,27 @@ export default function MyCollection() {
 
     if (!collection) return [];
 
-    // Return the collection items
-    return Array.from(collection.cards.values());
+    // Convert the Map to an array
+    const collectionArray = Array.from(collection.cards.values());
+
+    // Log market prices for debugging
+    console.log(`[MyCollection] Got ${collectionArray.length} cards for ${activeGroup}/${activeType}`);
+    if (collectionArray.length > 0) {
+      const priceStats = {
+        totalWithPrice: collectionArray.filter(card => card.market_price && card.market_price > 0).length,
+        totalWithZeroPrice: collectionArray.filter(card => card.market_price === 0).length,
+        totalWithNullPrice: collectionArray.filter(card => card.market_price === null).length,
+        totalWithUndefinedPrice: collectionArray.filter(card => card.market_price === undefined).length,
+        sampleCards: collectionArray.slice(0, 3).map(card => ({
+          card_id: card.card_id,
+          card_name: card.card_name,
+          market_price: card.market_price
+        }))
+      };
+      console.log(`[MyCollection] Price stats:`, priceStats);
+    }
+
+    return collectionArray;
   }, [collections, activeGroup, activeType]);
 
   // Collection statistics with local updates applied
@@ -278,35 +297,23 @@ export default function MyCollection() {
         storeCardPrice(item.card_id, updatedPrice as number);
         storePrice(item.card_id, updatedPrice as number);
       } else {
-        // Use the price from our robust cache first, then fall back to the original cache
-        const bestPrice = getBestPrice(item.card_id, updatedItem.market_price);
-        if (bestPrice > 0) {
-          updatedItem.market_price = bestPrice;
-          // Store this price in both caches for maximum persistence
-          storeCardPrice(item.card_id, bestPrice);
+        // Fall back to the original cache as a last resort
+        const fallbackPrice = getCardPriceWithFallback(item.card_id, updatedItem.market_price);
+        if (fallbackPrice > 0) {
+          updatedItem.market_price = fallbackPrice;
+          // Store in robust cache for future use
+          storePrice(item.card_id, fallbackPrice);
           // Only log in development mode and only for debugging
           if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
-            console.log(`[MyCollection] Using robust cached price ${bestPrice} for card ${item.card_id}`);
+            console.log(`[MyCollection] Using fallback price ${fallbackPrice} for card ${item.card_id}`);
           }
-        } else {
-          // Fall back to the original cache as a last resort
-          const fallbackPrice = getCardPriceWithFallback(item.card_id, updatedItem.market_price);
-          if (fallbackPrice > 0) {
-            updatedItem.market_price = fallbackPrice;
-            // Store in robust cache for future use
-            storePrice(item.card_id, fallbackPrice);
-            // Only log in development mode and only for debugging
-            if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
-              console.log(`[MyCollection] Using fallback price ${fallbackPrice} for card ${item.card_id}`);
-            }
-          } else if (updatedItem.market_price > 0) {
-            // If we have a valid market price from the database, store it in both caches
-            storeCardPrice(item.card_id, updatedItem.market_price);
-            storePrice(item.card_id, updatedItem.market_price);
-            // Only log in development mode and only for debugging
-            if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
-              console.log(`[MyCollection] Using database price ${updatedItem.market_price} for card ${item.card_id}`);
-            }
+        } else if (updatedItem.market_price > 0) {
+          // If we have a valid market price from the database, store it in both caches
+          storeCardPrice(item.card_id, updatedItem.market_price);
+          storePrice(item.card_id, updatedItem.market_price);
+          // Only log in development mode and only for debugging
+          if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
+            console.log(`[MyCollection] Using database price ${updatedItem.market_price} for card ${item.card_id}`);
           }
         }
       }
@@ -447,6 +454,38 @@ export default function MyCollection() {
     setTimeUntilNextUpdate(getTimeUntilNextUpdate());
   }, []);
 
+  // Listen for auth events
+  useEffect(() => {
+    const handleAuthReady = (event: CustomEvent) => {
+      console.log('Auth ready event received in MyCollection');
+      updatePriceInfoStates();
+    };
+
+    const handleAuthStateChange = (event: CustomEvent) => {
+      console.log('Auth state change event received in MyCollection:', event.detail.event);
+      updatePriceInfoStates();
+    };
+
+    // Add event listeners
+    if (typeof window !== 'undefined') {
+      console.log('Adding auth event listeners in MyCollection');
+      window.addEventListener('auth-ready', handleAuthReady as EventListener);
+      window.addEventListener('auth-state-change', handleAuthStateChange as EventListener);
+    }
+
+    // Initial update
+    updatePriceInfoStates();
+
+    // Clean up event listeners
+    return () => {
+      if (typeof window !== 'undefined') {
+        console.log('Removing auth event listeners in MyCollection');
+        window.removeEventListener('auth-ready', handleAuthReady as EventListener);
+        window.removeEventListener('auth-state-change', handleAuthStateChange as EventListener);
+      }
+    };
+  }, [updatePriceInfoStates]);
+
   // Function to handle quantity changes
   const handleQuantityChange = useCallback(async (cardId: string, newQuantity: number) => {
     // Update the local collection updates map immediately for UI updates
@@ -548,6 +587,48 @@ export default function MyCollection() {
   // Track if we've already triggered an auto-update for the current collection
   const [hasAutoUpdated, setHasAutoUpdated] = useState<boolean>(false);
 
+  // Function to manually refresh collections
+  const handleManualRefresh = useCallback(async () => {
+    console.log('Manual refresh requested');
+    setPriceUpdateMessage('Refreshing collections...');
+
+    try {
+      // First, log the current collection state
+      console.log('[MyCollection] Current collection before refresh:', currentCollection);
+
+      // Check the database directly
+      try {
+        const dbResponse = await fetch(`/api/debug-db?groupName=${encodeURIComponent(activeGroup)}`);
+        const dbData = await dbResponse.json();
+        console.log('[MyCollection] Database state before refresh:', dbData);
+      } catch (dbError) {
+        console.error('[MyCollection] Error checking database:', dbError);
+      }
+
+      // Refresh collections
+      await refreshCollections();
+
+      // Log the updated collection state
+      console.log('[MyCollection] Collection after refresh:', currentCollection);
+
+      // Check the database again
+      try {
+        const dbResponse = await fetch(`/api/debug-db?groupName=${encodeURIComponent(activeGroup)}`);
+        const dbData = await dbResponse.json();
+        console.log('[MyCollection] Database state after refresh:', dbData);
+      } catch (dbError) {
+        console.error('[MyCollection] Error checking database after refresh:', dbError);
+      }
+
+      setPriceUpdateMessage('Collections refreshed successfully');
+      setTimeout(() => setPriceUpdateMessage(null), 3000);
+    } catch (error) {
+      console.error('Error refreshing collections:', error);
+      setPriceUpdateMessage('Error refreshing collections');
+      setTimeout(() => setPriceUpdateMessage(null), 5000);
+    }
+  }, [refreshCollections, currentCollection, activeGroup]);
+
   // Handle updating market prices
   const handleUpdateMarketPrices = useCallback(async (isAutoUpdate = false) => {
     if (isUpdatingPrices) return;
@@ -560,14 +641,17 @@ export default function MyCollection() {
     }
 
     try {
+      console.log(`[MyCollection] Updating prices for group: ${activeGroup}`);
       const response = await fetch(`/api/collections/update-prices?groupName=${encodeURIComponent(activeGroup)}`);
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('[MyCollection] Error response from update-prices API:', errorData);
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('[MyCollection] Response from update-prices API:', data);
 
       // Only show success message for manual updates
       if (!isAutoUpdate) {
@@ -590,14 +674,18 @@ export default function MyCollection() {
       // Update the prices in the current collection without refreshing
       // We'll fetch just the updated prices and apply them to our local state
       try {
+        console.log('[MyCollection] Fetching updated collection data...');
         const pricesResponse = await fetch(`/api/collections?groupName=${encodeURIComponent(activeGroup)}`);
         if (pricesResponse.ok) {
           const pricesData = await pricesResponse.json();
+          console.log('[MyCollection] Fetched collection data:', pricesData);
+
           if (pricesData.collection) {
             // Create a map of card ID to market price
             const priceMap = new Map();
             pricesData.collection.forEach((item: any) => {
               priceMap.set(item.card_id, item.market_price || 0);
+              console.log(`[MyCollection] Price from API for ${item.card_id}: ${item.market_price || 0}`);
             });
 
             // Update the local collection with new prices
@@ -605,6 +693,8 @@ export default function MyCollection() {
             currentCollection.forEach(item => {
               if (priceMap.has(item.card_id)) {
                 const updatedPrice = priceMap.get(item.card_id);
+                console.log(`[MyCollection] Comparing prices for ${item.card_id}: current=${item.market_price}, new=${updatedPrice}`);
+
                 if (updatedPrice !== item.market_price) {
                   // Store the updated price in our local updates
                   // We'll use a special key format to distinguish price updates from quantity updates
@@ -612,18 +702,23 @@ export default function MyCollection() {
                   // Store in BOTH our caches for maximum persistence
                   storeCardPrice(item.card_id, updatedPrice);
                   storePrice(item.card_id, updatedPrice);
-                  // Only log in development mode and only for debugging
-                  if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PRICES === 'true') {
-                    console.log(`[MyCollection] Updated price for ${item.card_id} to ${updatedPrice}`);
-                  }
+                  console.log(`[MyCollection] Updated price for ${item.card_id} to ${updatedPrice}`);
                 }
+              } else {
+                console.log(`[MyCollection] No price found for ${item.card_id} in API response`);
               }
             });
+
+            console.log('[MyCollection] Setting local collection updates:', Array.from(newUpdates.entries()));
             setLocalCollectionUpdates(newUpdates);
+          } else {
+            console.warn('[MyCollection] No collection data found in API response');
           }
+        } else {
+          console.error('[MyCollection] Failed to fetch collection data:', pricesResponse.status);
         }
       } catch (priceErr) {
-        console.error('Error updating local prices:', priceErr);
+        console.error('[MyCollection] Error updating local prices:', priceErr);
       }
     } catch (err) {
       console.error('Error updating market prices:', err);
@@ -721,13 +816,21 @@ export default function MyCollection() {
 
   // Effect to set active group when groups change
   useEffect(() => {
-    // If there are groups but no active group is selected, select the first group
+    // If there are groups but no active group is selected, select 'Default' if available, otherwise first group
     if (groups.length > 0 && !activeGroup) {
-      setActiveGroup(groups[0]);
+      if (groups.includes('Default')) {
+        setActiveGroup('Default');
+      } else {
+        setActiveGroup(groups[0]);
+      }
     }
-    // If the active group is not in the groups list anymore, select the first available group
+    // If the active group is not in the groups list anymore, select 'Default' if available, otherwise first group
     else if (groups.length > 0 && !groups.includes(activeGroup)) {
-      setActiveGroup(groups[0]);
+      if (groups.includes('Default')) {
+        setActiveGroup('Default');
+      } else {
+        setActiveGroup(groups[0]);
+      }
     }
     // If there are no groups, clear the active group
     else if (groups.length === 0 && activeGroup) {
@@ -818,7 +921,37 @@ export default function MyCollection() {
               <div className="bg-purple-50 p-3 rounded text-center border border-purple-100 shadow-sm">
                 <p className="text-sm font-medium text-gray-700">Total Value</p>
                 <p className="text-lg font-bold text-gray-800">${collectionStats.totalValue.toFixed(2)}</p>
-                <p className="text-xs font-medium text-gray-700 mt-1">{isUpdatingPrices ? 'Updating prices...' : getLastUpdateTimeFormatted()}</p>
+                <div className="flex items-center justify-center space-x-1 text-xs font-medium text-gray-700 mt-1">
+                  <span>{isUpdatingPrices ? 'Updating prices...' : getLastUpdateTimeFormatted()}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleManualRefresh()}
+                    className="ml-1 p-1 rounded-full hover:bg-purple-200 transition-colors"
+                    title="Refresh collections"
+                    disabled={isUpdatingPrices}
+                  >
+                    <ArrowPathIcon className={`h-3 w-3 ${isUpdatingPrices ? 'animate-spin' : ''}`} />
+                  </button>
+                  {process.env.NODE_ENV === 'development' && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        console.log('[DEBUG] Current collection:', currentCollection);
+                        try {
+                          const response = await fetch(`/api/debug-db?groupName=${encodeURIComponent(activeGroup)}`);
+                          const data = await response.json();
+                          console.log('[DEBUG] Database state:', data);
+                        } catch (error) {
+                          console.error('[DEBUG] Error checking database:', error);
+                        }
+                      }}
+                      className="ml-1 p-1 rounded-full bg-yellow-500 hover:bg-yellow-600 text-white"
+                      title="Debug"
+                    >
+                      D
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="bg-amber-50 p-3 rounded text-center border border-amber-100 shadow-sm">
                 <p className="text-sm font-medium text-gray-700">Recently Added</p>
@@ -852,7 +985,20 @@ export default function MyCollection() {
                   I Want ({collectionCounts.want})
                 </button>
               </div>
-              <Link href="/explore" className="px-3 py-1.5 text-sm font-medium rounded bg-green-600 text-white hover:bg-green-700">
+              <Link
+                href="/explore"
+                className="px-3 py-1.5 text-sm font-medium rounded bg-green-600 text-white hover:bg-green-700"
+                onClick={() => {
+                  // Store the current active group in localStorage for the Explore page
+                  if (typeof window !== 'undefined') {
+                    try {
+                      localStorage.setItem('lastActiveCollectionGroup', activeGroup);
+                    } catch (error) {
+                      console.error('Error saving last active collection group:', error);
+                    }
+                  }
+                }}
+              >
                 Add Cards
               </Link>
               <button
