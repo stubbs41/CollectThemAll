@@ -28,7 +28,8 @@ export default function AuthForm() {
     : productionUrl;
 
   console.log('Using site URL for auth redirect:', siteUrl);
-  const redirectUrl = `${siteUrl}/auth/callback?redirectTo=${encodeURIComponent(redirectPath)}`;
+  // Don't include /auth/callback in the redirect URL
+  const redirectUrl = `${siteUrl}?redirectTo=${encodeURIComponent(redirectPath)}`;
   console.log('Full redirect URL:', redirectUrl);
 
   // Handle email input and show password field

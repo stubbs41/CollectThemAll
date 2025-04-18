@@ -62,16 +62,45 @@ export async function GET(request: NextRequest) {
       const supabase = createRouteHandlerClient<Database>({ cookies: () => cookieStore });
 
       console.log('Exchanging code for session...');
-      // Exchange the code for a session
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      fs.appendFileSync(logPath, `${timestamp} - Exchanging code for session...
+`);
 
-      if (error) {
-        console.error('Error exchanging code for session:', error);
-      } else {
-        console.log('Session established successfully, user ID:', data.session?.user.id);
+      try {
+        // Exchange the code for a session
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
-        // Force update cookies to ensure they're properly set
-        await supabase.auth.getSession();
+        if (error) {
+          console.error('Error exchanging code for session:', error);
+          fs.appendFileSync(logPath, `${timestamp} - Error exchanging code for session: ${JSON.stringify(error)}
+`);
+        } else {
+          console.log('Session established successfully, user ID:', data.session?.user.id);
+          fs.appendFileSync(logPath, `${timestamp} - Session established successfully, user ID: ${data.session?.user.id}
+`);
+
+          // Force update cookies to ensure they're properly set
+          const sessionResult = await supabase.auth.getSession();
+          fs.appendFileSync(logPath, `${timestamp} - Session after refresh: ${sessionResult.data.session ? 'Present' : 'Not present'}
+`);
+
+          // Check if we're on the production URL
+          const currentUrl = requestUrl.origin;
+          const productionUrl = 'https://poke-binder-flax.vercel.app';
+
+          fs.appendFileSync(logPath, `${timestamp} - Current URL: ${currentUrl}, Production URL: ${productionUrl}
+`);
+
+          if (currentUrl !== productionUrl &&
+              !currentUrl.includes('localhost') &&
+              !currentUrl.includes('127.0.0.1')) {
+            fs.appendFileSync(logPath, `${timestamp} - Not on production URL, will redirect to: ${productionUrl}
+`);
+          }
+        }
+      } catch (sessionError) {
+        console.error('Exception during session exchange:', sessionError);
+        fs.appendFileSync(logPath, `${timestamp} - Exception during session exchange: ${sessionError}
+`);
       }
     } catch (error) {
       console.error('Unexpected error in auth callback:', error);
@@ -83,10 +112,8 @@ export async function GET(request: NextRequest) {
   // Always use the production URL for redirects
   const productionUrl = 'https://poke-binder-flax.vercel.app';
 
-  // Check if we're in a preview deployment or localhost
-  const origin = process.env.NODE_ENV === 'development'
-    ? requestUrl.origin // Use current origin for local development
-    : productionUrl;    // Use production URL in all other environments
+  // Always use the production URL in production
+  const origin = productionUrl;
 
   console.log('Using origin for redirect:', origin);
 

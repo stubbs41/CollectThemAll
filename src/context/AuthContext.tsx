@@ -45,35 +45,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const authTimestamp = searchParams.get('auth_timestamp');
     if (authTimestamp) {
       isAuthRedirect.current = true;
+      console.log('Auth redirect detected via auth_timestamp parameter');
+
+      // Force a session refresh immediately
+      refreshSession();
 
       // Remove the timestamp parameter from URL to clean it up
       // We'll use setTimeout to ensure this happens after other code has run
       setTimeout(() => {
         // Check if window is defined (client-side only)
         if (typeof window !== 'undefined') {
-          // Check if we're on the production URL
-          const productionUrl = 'https://poke-binder-flax.vercel.app';
-          const currentUrl = window.location.href;
-
-          // If we're not on the production URL and not in development, redirect
-          if (!currentUrl.includes(productionUrl) &&
-              !currentUrl.includes('localhost') &&
-              !currentUrl.includes('127.0.0.1')) {
-            console.log('Redirecting to production URL after auth');
-            // Create a new URL with the production domain
-            const url = new URL(window.location.pathname + window.location.search, productionUrl);
-            url.searchParams.delete('auth_timestamp');
-            window.location.href = url.toString();
-            return;
-          }
-
-          // Otherwise just clean up the URL
+          // Always clean up the URL
           const url = new URL(window.location.href);
           url.searchParams.delete('auth_timestamp');
           window.history.replaceState({}, '', url.toString());
 
           // Clear the stored redirect path since we've completed the redirect
           localStorage.removeItem(REDIRECT_PATH_KEY);
+
+          // Force a refresh of collections
+          console.log('Dispatching manual collection refresh event');
+          window.dispatchEvent(new CustomEvent('force-collection-refresh'));
         }
       }, 500);
     }

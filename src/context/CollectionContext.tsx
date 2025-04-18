@@ -2,7 +2,7 @@
 
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { PokemonCard } from '@/lib/types';
-import { storePrice } from '@/lib/robustPriceCache';
+import { storePrice, getBestPrice } from '@/lib/robustPriceCache';
 import CollectionService, {
   CollectionType,
   CollectionItem,
@@ -62,11 +62,26 @@ interface CollectionProviderProps {
   children: ReactNode;
 }
 
+// Local storage key for active collection group
+const ACTIVE_GROUP_KEY = 'activeCollectionGroup';
+
+// Function to get the active group from localStorage
+const getStoredActiveGroup = (): string => {
+  if (typeof window === 'undefined') return 'Default';
+  try {
+    const storedGroup = localStorage.getItem(ACTIVE_GROUP_KEY);
+    return storedGroup || 'Default';
+  } catch (error) {
+    console.error('Error getting active group from localStorage:', error);
+    return 'Default';
+  }
+};
+
 export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children }) => {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [groups, setGroups] = useState<string[]>([]);
   const [collectionGroups, setCollectionGroups] = useState<CollectionGroup[]>([]);
-  const [activeGroup, setActiveGroup] = useState<string>('');
+  const [activeGroup, setActiveGroup] = useState<string>(getStoredActiveGroup());
   const [isLoading, setIsLoading] = useState(true);
   const { session } = useAuth();
 
@@ -75,15 +90,20 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
 
   // Function to load collections
   const loadCollections = useCallback(async () => {
+    console.log('Loading collections...');
     setIsLoading(true);
 
     try {
       // Fetch collection groups
+      console.log('Fetching collection groups...');
       const groups = await collectionService.fetchCollectionGroups();
+      console.log('Collection groups fetched:', groups.length);
       setCollectionGroups(groups);
 
       // Fetch collections using the updated CollectionService API
+      console.log('Fetching collections...');
       const groupsMap = await collectionService.fetchCollections();
+      console.log('Collections fetched, group count:', groupsMap.size);
 
       // Convert the hierarchical structure to a flat array of collections
       const allCollections: Collection[] = [];
@@ -149,11 +169,13 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         });
       });
 
+      console.log('Setting collections:', allCollections.length);
       setCollections(allCollections);
       setGroups(groupNames);
 
       // Update collection values
       await collectionService.updateCollectionValues();
+      console.log('Collection values updated');
     } catch (error) {
       console.error('Error loading collections:', error);
       setCollections([]);
@@ -161,16 +183,23 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
       setCollectionGroups([]);
     } finally {
       setIsLoading(false);
+      console.log('Finished loading collections');
     }
   }, [collectionService]);
 
   // Listen for auth events
   useEffect(() => {
     const handleAuthReady = (event: CustomEvent) => {
-      const { session } = event.detail;
+      console.log('Auth ready event received in CollectionContext');
+      const { session, user } = event.detail;
       if (session) {
-        loadCollections();
+        console.log('Auth ready with session, loading collections...');
+        // Add a small delay to ensure auth is fully established
+        setTimeout(() => {
+          loadCollections();
+        }, 500);
       } else {
+        console.log('Auth ready with no session, clearing collections');
         // No session, empty collections
         setCollections([]);
         setGroups([]);
@@ -180,10 +209,17 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     };
 
     const handleAuthStateChange = (event: CustomEvent) => {
-      const { session } = event.detail;
+      console.log('Auth state change event received in CollectionContext:', event.detail.event);
+      const { session, user, event: authEvent } = event.detail;
+
       if (session) {
-        loadCollections();
+        console.log('Auth state change with session, loading collections...');
+        // Add a small delay to ensure auth is fully established
+        setTimeout(() => {
+          loadCollections();
+        }, 500);
       } else {
+        console.log('Auth state change with no session, clearing collections');
         // No session, empty collections
         setCollections([]);
         setGroups([]);
@@ -192,16 +228,29 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
       }
     };
 
+    // Handle force collection refresh event
+    const handleForceCollectionRefresh = () => {
+      console.log('Force collection refresh event received');
+      if (session) {
+        console.log('Session exists, force loading collections...');
+        loadCollections();
+      }
+    };
+
     // Add event listeners
     if (typeof window !== 'undefined') {
+      console.log('Adding auth event listeners in CollectionContext');
       window.addEventListener('auth-ready', handleAuthReady as EventListener);
       window.addEventListener('auth-state-change', handleAuthStateChange as EventListener);
+      window.addEventListener('force-collection-refresh', handleForceCollectionRefresh as EventListener);
     }
 
     // Initial load based on session
     if (session) {
+      console.log('Initial session exists in CollectionContext, loading collections...');
       loadCollections();
     } else {
+      console.log('No initial session in CollectionContext, waiting for auth events');
       // No session, empty collections
       setCollections([]);
       setGroups([]);
@@ -209,11 +258,13 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
       setIsLoading(false);
     }
 
-    // Clean up event listeners
+    // Cleanup event listeners
     return () => {
       if (typeof window !== 'undefined') {
+        console.log('Removing auth event listeners in CollectionContext');
         window.removeEventListener('auth-ready', handleAuthReady as EventListener);
         window.removeEventListener('auth-state-change', handleAuthStateChange as EventListener);
+        window.removeEventListener('force-collection-refresh', handleForceCollectionRefresh as EventListener);
       }
     };
   }, [session, loadCollections]);
@@ -222,6 +273,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
   const refreshCollections = useCallback(async () => {
     setIsLoading(true);
     try {
+      console.log('[CollectionContext] Refreshing collections...');
       collectionService.invalidateCache();
 
       // Fetch collection groups
@@ -244,22 +296,30 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         const haveValue = groupInfo?.have_value || 0;
         const wantValue = groupInfo?.want_value || 0;
 
+        console.log(`[CollectionContext] Processing group ${groupName}: have=${haveValue}, want=${wantValue}`);
+
         // Store prices for future reference but don't modify the database values
         const haveCards = new Map();
         Array.from(groupData.have.entries()).forEach(([cardId, card]) => {
-          // Store the price for future use if it's valid
-          if (card.market_price && card.market_price > 0) {
-            storePrice(cardId, card.market_price);
-          }
+          // Always store the database price first, even if it's 0
+          // This ensures we're using the latest data from the database
+          storePrice(cardId, card.market_price || 0);
+
+          // Log price for debugging
+          console.log(`[CollectionContext] Have card ${cardId}: price=${card.market_price || 0}`);
+
           haveCards.set(cardId, card);
         });
 
         const wantCards = new Map();
         Array.from(groupData.want.entries()).forEach(([cardId, card]) => {
-          // Store the price for future use if it's valid
-          if (card.market_price && card.market_price > 0) {
-            storePrice(cardId, card.market_price);
-          }
+          // Always store the database price first, even if it's 0
+          // This ensures we're using the latest data from the database
+          storePrice(cardId, card.market_price || 0);
+
+          // Log price for debugging
+          console.log(`[CollectionContext] Want card ${cardId}: price=${card.market_price || 0}`);
+
           wantCards.set(cardId, card);
         });
 
@@ -284,13 +344,14 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
         });
       });
 
+      console.log(`[CollectionContext] Setting ${allCollections.length} collections`);
       setCollections(allCollections);
       setGroups(groupNames);
 
       // Update collection values
       await collectionService.updateCollectionValues();
     } catch (error) {
-      console.error('Error refreshing collections:', error);
+      console.error('[CollectionContext] Error refreshing collections:', error);
     } finally {
       setIsLoading(false);
     }
@@ -565,6 +626,24 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     }
   }, [session, collectionService, refreshCollections]);
 
+  // Custom setActiveGroup function that also updates localStorage
+  const setActiveGroupWithStorage = useCallback((groupName: string) => {
+    // Default to 'Default' if no group name is provided
+    const newActiveGroup = groupName || 'Default';
+
+    // Update state
+    setActiveGroup(newActiveGroup);
+
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(ACTIVE_GROUP_KEY, newActiveGroup);
+      } catch (error) {
+        console.error('Error saving active group to localStorage:', error);
+      }
+    }
+  }, []);
+
   const contextValue: CollectionContextType = {
     collections,
     groups,
@@ -580,7 +659,7 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
     createCollectionGroup,
     renameCollectionGroup,
     deleteCollectionGroup,
-    setActiveGroup,
+    setActiveGroup: setActiveGroupWithStorage,
     shareCollection,
     importCollection,
     exportCollection,
