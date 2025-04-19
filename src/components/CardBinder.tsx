@@ -369,11 +369,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
          <div className="text-center text-sm text-gray-600 mt-4 flex items-center justify-center flex-wrap gap-2 w-full">
              <button
                  type="button"
-                 onClick={(e) => {
-                     // Special handling for navigating from page 421 to 420
-                     if (currentPage === 421) {
-                         e.preventDefault();
-                     }
+                 onClick={() => {
                      goToPreviousPage();
                  }}
                  disabled={currentPage === 1 || isLoading}
@@ -388,11 +384,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
                      <button
                          type="button"
                          key={`page-${item}`}
-                         onClick={(e) => {
-                             // Special handling for page 420 to prevent auth reinitialization
-                             if (item === 420) {
-                                 e.preventDefault();
-                             }
+                         onClick={() => {
                              goToPage(item);
                          }}
                          disabled={item === currentPage || isLoading}
@@ -437,10 +429,6 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                         // User wants to try the high page anyway
                                         goToPage(pageNum);
                                     }
-                                } else if (pageNum === 420) {
-                                    // Special handling for page 420 to prevent auth reinitialization
-                                    e.preventDefault();
-                                    goToPage(420);
                                 } else if (pageNum <= totalPages) {
                                     goToPage(pageNum);
                                 } else {
@@ -468,10 +456,6 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                     // User wants to try the high page anyway
                                     goToPage(pageNum);
                                 }
-                            } else if (pageNum === 420) {
-                                // Special handling for page 420 to prevent auth reinitialization
-                                e.preventDefault();
-                                goToPage(420);
                             } else if (pageNum <= totalPages) {
                                 goToPage(pageNum);
                             } else {
@@ -490,11 +474,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
 
              <button
                  type="button"
-                 onClick={(e) => {
-                     // Special handling for navigating to page 420
-                     if (currentPage === 419) {
-                         e.preventDefault();
-                     }
+                 onClick={() => {
                      goToNextPage();
                  }}
                  disabled={currentPage >= totalPages || isLoading}
