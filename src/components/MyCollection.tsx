@@ -181,6 +181,12 @@ export default function MyCollection() {
         updatedItem.market_price = updatedPrice as number;
       }
 
+      // Apply price persistence to ensure we have the best price
+      const bestPrice = getBestPrice(item.card_id, updatedItem.market_price);
+      if (bestPrice > 0) {
+        updatedItem.market_price = bestPrice;
+      }
+
       return updatedItem;
     }).filter(item => {
       // Filter out cards with quantity 0 (marked for removal)
