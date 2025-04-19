@@ -298,11 +298,16 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
 
         console.log(`[CollectionContext] Processing group ${groupName}: have=${haveValue}, want=${wantValue}`);
 
-        // Store prices for future reference but don't modify the database values
+        // Apply price persistence to the cards before adding to collections
         const haveCards = new Map();
         Array.from(groupData.have.entries()).forEach(([cardId, card]) => {
-          // Always store the database price first, even if it's 0
-          // This ensures we're using the latest data from the database
+          // Apply price persistence
+          const bestPrice = getBestPrice(cardId, card.market_price);
+          if (bestPrice > 0) {
+            card.market_price = bestPrice;
+          }
+
+          // Store the price for future use
           if (card.market_price && card.market_price > 0) {
             storePrice(cardId, card.market_price);
           }
@@ -315,8 +320,13 @@ export const CollectionProvider: React.FC<CollectionProviderProps> = ({ children
 
         const wantCards = new Map();
         Array.from(groupData.want.entries()).forEach(([cardId, card]) => {
-          // Always store the database price first, even if it's 0
-          // This ensures we're using the latest data from the database
+          // Apply price persistence
+          const bestPrice = getBestPrice(cardId, card.market_price);
+          if (bestPrice > 0) {
+            card.market_price = bestPrice;
+          }
+
+          // Store the price for future use
           if (card.market_price && card.market_price > 0) {
             storePrice(cardId, card.market_price);
           }
