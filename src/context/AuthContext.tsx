@@ -217,7 +217,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, pathname]); // Re-initialize when pathname changes
+  }, [supabase]); // Only re-initialize when supabase client changes
 
   // Sign out function
   const signOut = async () => {
