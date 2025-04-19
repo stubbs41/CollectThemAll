@@ -1185,16 +1185,20 @@ export default function MyCollection() {
                   ${(() => {
                     // First check local updates (from the current session)
                     if (localCollectionUpdates.has(`price_${item.card_id}`)) {
-                      return localCollectionUpdates.get(`price_${item.card_id}`);
+                      const price = localCollectionUpdates.get(`price_${item.card_id}`);
+                      console.log(`[MyCollection] Using local update price ${price} for card ${item.card_id}`);
+                      return price;
                     }
 
                     // Try to get the best price from our cache
                     const bestPrice = getBestPrice(item.card_id, item.market_price);
                     if (bestPrice > 0) {
+                      console.log(`[MyCollection] Using best price ${bestPrice} for card ${item.card_id}`);
                       return bestPrice;
                     }
 
                     // Use market_price from database
+                    console.log(`[MyCollection] Using database price ${item.market_price || 0} for card ${item.card_id}`);
                     return item.market_price || 0;
                   })().toFixed(2)}
                 </span>
