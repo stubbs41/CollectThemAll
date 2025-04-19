@@ -2,7 +2,7 @@
 
 import React, { createContext, useState, useEffect, useContext, ReactNode, useCallback } from 'react';
 import { PokemonCard } from '@/lib/types';
-import { storePrice } from '@/lib/robustPriceCache';
+import { storePrice, getBestPrice } from '@/lib/robustPriceCache';
 import CollectionService, {
   CollectionType,
   CollectionItem,
