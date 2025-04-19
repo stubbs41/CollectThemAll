@@ -1182,25 +1182,7 @@ export default function MyCollection() {
               <div className="flex justify-between w-full items-center mt-1">
                 {/* Check for price updates in localCollectionUpdates or global cache */}
                 <span className="text-xs font-medium text-gray-700">
-                  ${(() => {
-                    // First check local updates (from the current session)
-                    if (localCollectionUpdates.has(`price_${item.card_id}`)) {
-                      const price = localCollectionUpdates.get(`price_${item.card_id}`);
-                      console.log(`[MyCollection] Using local update price ${price} for card ${item.card_id}`);
-                      return price;
-                    }
-
-                    // Try to get the best price from our cache
-                    const bestPrice = getBestPrice(item.card_id, item.market_price);
-                    if (bestPrice > 0) {
-                      console.log(`[MyCollection] Using best price ${bestPrice} for card ${item.card_id}`);
-                      return bestPrice;
-                    }
-
-                    // Use market_price from database
-                    console.log(`[MyCollection] Using database price ${item.market_price || 0} for card ${item.card_id}`);
-                    return item.market_price || 0;
-                  })().toFixed(2)}
+                  ${item.market_price ? item.market_price.toFixed(2) : '0.00'}
                 </span>
 
                 {/* Quantity Controls moved up to same level as price */}
