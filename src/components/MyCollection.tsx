@@ -25,7 +25,7 @@ import { FunnelIcon, CurrencyDollarIcon, ClockIcon, ArrowPathIcon } from '@heroi
 import { CollectionType } from '@/services/CollectionService';
 import { shouldUpdatePrices, updatePriceTimestamp, getLastUpdateTimeFormatted, getTimeUntilNextUpdate } from '@/lib/priceUtils';
 import { storeCardPrice, getCardPriceWithFallback, applyPricesToCollection } from '@/lib/pricePersistence';
-import { storePrice, applyPricesToItems, initializeCache } from '@/lib/robustPriceCache';
+import { storePrice, getBestPrice, applyPricesToItems, initializeCache } from '@/lib/robustPriceCache';
 import { PokemonCard } from '@/lib/types';
 import SimpleCardDetailModal from '@/components/SimpleCardDetailModal';
 import { fetchCardDetails } from '@/lib/pokemonApi';
