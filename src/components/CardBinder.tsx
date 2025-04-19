@@ -9,7 +9,7 @@ import SimpleCardDetailModal from './SimpleCardDetailModal';
 import { formatPrice, getMarketPrice, getBestAvailablePrice, getProxiedImageUrl } from '@/lib/utils';
 import { applyPricesToCards } from '@/lib/priceCache';
 import { getCardPriceWithFallback, storeCardPrice, getCardPrice } from '@/lib/pricePersistence';
-import { storePrice, getBestPrice, applyPricesToItems } from '@/lib/robustPriceCache';
+import { storePrice, applyPricesToItems } from '@/lib/robustPriceCache';
 import { useCollections } from '@/context/CollectionContext';
 import { useAuth } from '@/context/AuthContext';
 import { fetchCardDetails } from '@/lib/pokemonApi'; // Import for prefetching
@@ -249,9 +249,8 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                          // Try to get the best price from the card data
                                          const bestPrice = card ? getBestAvailablePrice(card.tcgplayer?.prices) : null;
 
-                                         // Always try to get the price from our robust cache first
-                                         // This ensures we use the most persistent price available
-                                         const robustCachedPrice = card ? getBestPrice(card.id, null) : 0;
+                                         // Try to get the price from our cache
+                                         const robustCachedPrice = card ? getCardPrice(card.id) : 0;
 
                                          // Fall back to the original cache if needed
                                          const originalCachedPrice = card ? getCardPrice(card.id) : null;
