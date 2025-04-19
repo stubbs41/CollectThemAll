@@ -1188,6 +1188,12 @@ export default function MyCollection() {
                       return localCollectionUpdates.get(`price_${item.card_id}`);
                     }
 
+                    // Try to get the best price from our cache
+                    const bestPrice = getBestPrice(item.card_id, item.market_price);
+                    if (bestPrice > 0) {
+                      return bestPrice;
+                    }
+
                     // Use market_price from database
                     return item.market_price || 0;
                   })().toFixed(2)}
