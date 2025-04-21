@@ -6,10 +6,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { PokemonCard } from '@/lib/types';
 import SimpleCardDetailModal from './SimpleCardDetailModal';
-import { formatPrice, getMarketPrice, getBestAvailablePrice, getProxiedImageUrl } from '@/lib/utils';
+import { formatPrice, getBestAvailablePrice, getProxiedImageUrl } from '@/lib/utils';
 import { applyPricesToCards } from '@/lib/priceCache';
-import { getCardPriceWithFallback, storeCardPrice, getCardPrice } from '@/lib/pricePersistence';
-import { storePrice, getBestPrice, applyPricesToItems } from '@/lib/robustPriceCache';
+import { getCardPriceWithFallback, getCardPrice } from '@/lib/pricePersistence';
+import { storePrice, getBestPrice } from '@/lib/robustPriceCache';
 import { useCollections } from '@/context/CollectionContext';
 import { useAuth } from '@/context/AuthContext';
 import { fetchCardDetails } from '@/lib/pokemonApi'; // Import for prefetching
@@ -25,6 +25,49 @@ interface CardBinderProps {
   isExploreView?: boolean; // New prop to indicate if this is the explore view
 }
 
+// Helper function to get price display details - fully independent of React
+function calculatePriceDetails(card: PokemonCard | null) {
+  if (!card || !card.id) {
+    return {
+      finalPrice: null,
+      displayClass: 'bg-gray-500',
+      textClass: 'text-white'
+    };
+  }
+
+  // Try to get the best price from the card data
+  const bestPrice = getBestAvailablePrice(card.tcgplayer?.prices);
+
+  // Always try to get the price from our robust cache first
+  const robustCachedPrice = getBestPrice(card.id, null);
+
+  // Fall back to the original cache if needed
+  const originalCachedPrice = getCardPrice(card.id);
+
+  // Use the best available price with this priority
+  let finalPrice;
+  if (robustCachedPrice > 0) {
+    finalPrice = robustCachedPrice;
+  } else if (originalCachedPrice !== undefined && originalCachedPrice > 0) {
+    finalPrice = originalCachedPrice;
+  } else if (bestPrice !== null && bestPrice > 0) {
+    finalPrice = bestPrice;
+  } else {
+    finalPrice = getCardPriceWithFallback(card.id, bestPrice);
+  }
+
+  // Store the price in our cache if it's valid
+  if (finalPrice !== null && finalPrice > 0) {
+    storePrice(card.id, finalPrice);
+  }
+
+  return {
+    finalPrice,
+    displayClass: finalPrice ? 'bg-gray-800' : 'bg-gray-500',
+    textClass: finalPrice ? 'text-yellow-300' : 'text-white'
+  };
+}
+
 const CARDS_PER_SPREAD = 32;
 
 const CardBinder: React.FC<CardBinderProps> = ({
@@ -35,11 +78,10 @@ const CardBinder: React.FC<CardBinderProps> = ({
   goToPreviousPage,
   goToPage,
   isLoading,
-  isExploreView = false, // Default to false
+  isExploreView = false,
 }) => {
   // Get collection check function and collections array from context
   const {
-    collections,
     isCardInCollection,
     addCardToCollection,
     removeCardFromCollection,
@@ -52,7 +94,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
   // Prefetch visible cards to improve performance
   const prefetchVisibleCards = useCallback(() => {
     // Only prefetch if we have cards
-    if (cards.length === 0) return;
+    if (!cards || cards.length === 0) return;
 
     // Prefetch the first 8 cards on the current page (most likely to be clicked)
     const cardsToFetch = cards.slice(0, 8);
@@ -77,32 +119,38 @@ const CardBinder: React.FC<CardBinderProps> = ({
   }, [prefetchVisibleCards]);
 
   // Apply cached prices to cards when they change
-  const [processedCards, setProcessedCards] = useState<PokemonCard[]>(cards);
-
-  useEffect(() => {
+  const processedCards = useMemo(() => {
     // Apply cached prices to the cards
-    const cardsWithPrices = applyPricesToCards(cards);
-    setProcessedCards(cardsWithPrices);
+    return cards ? applyPricesToCards(cards) : [];
   }, [cards]);
 
   const handleCardClick = (cardId: string) => {
-    setSelectedCardId(cardId);
+    if (cardId) {
+      setSelectedCardId(cardId);
+    }
   };
 
   const handleCloseModal = () => {
     setSelectedCardId(null);
   };
 
-  const currentPageIndex = currentPage - 1;
-  const startIndex = currentPageIndex * CARDS_PER_SPREAD;
 
-  const currentSpreadCards = processedCards;
+  const currentSpreadCards = processedCards || [];
 
   const leftPageCards = currentSpreadCards.slice(0, 16);
   const rightPageCards = currentSpreadCards.slice(16, 16 + 16);
 
   // Enhanced pagination function to show more pages and handle large page counts
   const getPaginationItems = (currentPage: number, totalPages: number) => {
+    // Handle edge cases first
+    if (totalPages <= 0) {
+      return [1]; // Always show at least page 1
+    }
+
+    if (totalPages === 1) {
+      return [1]; // If there's only one page, just return that
+    }
+
     const items: (number | string)[] = [];
     const delta = 2; // Increased: show more pages around the current page
 
@@ -118,8 +166,11 @@ const CardBinder: React.FC<CardBinderProps> = ({
     const start = Math.max(2, currentPage - delta);
     const end = Math.min(totalPages - 1, currentPage + delta);
 
-    for (let i = start; i <= end; i++) {
-        items.push(i);
+    // Only add pages if start <= end (prevents issues with small totalPages)
+    if (start <= end) {
+      for (let i = start; i <= end; i++) {
+          items.push(i);
+      }
     }
 
     // Add trailing ellipsis if needed
@@ -144,30 +195,26 @@ const CardBinder: React.FC<CardBinderProps> = ({
   };
 
   const paginationItems = getPaginationItems(currentPage, totalPages);
+  
+  // Get the last active collection group from localStorage, or default to 'Default'
+  const getActiveGroup = () => {
+    if (typeof window === 'undefined') return 'Default';
+    try {
+      const lastActiveGroup = localStorage.getItem('lastActiveCollectionGroup');
+      const activeGroup = localStorage.getItem('activeCollectionGroup');
+      // First try to use the last active group (from Add Cards click)
+      // Then try the general active group
+      // Finally fall back to 'Default'
+      return lastActiveGroup || activeGroup || 'Default';
+    } catch (error) {
+      console.error('Error getting active group from localStorage:', error);
+      return 'Default';
+    }
+  };
 
   const renderPage = (pageCards: PokemonCard[], side: 'Left' | 'Right') => {
-    // Define CARDS_PER_SPREAD constant
-    const CARDS_PER_SPREAD = 32; // 16 cards on left page + 16 cards on right page
-
     // Start index for the current spread (two pages)
-    const startIndex = (currentPage - 1) * CARDS_PER_SPREAD;
-
-    // Get the last active collection group from localStorage, or default to 'Default'
-    const getActiveGroup = () => {
-      if (typeof window === 'undefined') return 'Default';
-      try {
-        const lastActiveGroup = localStorage.getItem('lastActiveCollectionGroup');
-        const activeGroup = localStorage.getItem('activeCollectionGroup');
-        // First try to use the last active group (from Add Cards click)
-        // Then try the general active group
-        // Finally fall back to 'Default'
-        return lastActiveGroup || activeGroup || 'Default';
-      } catch (error) {
-        console.error('Error getting active group from localStorage:', error);
-        return 'Default';
-      }
-    };
-
+    const spreadStartIndex = (currentPage - 1) * CARDS_PER_SPREAD;
     const defaultGroup = getActiveGroup();
 
     return (
@@ -182,12 +229,12 @@ const CardBinder: React.FC<CardBinderProps> = ({
             {Array.from({ length: 16 }).map((_, index) => {
                 // Adjust card index calculation for the current page
                 const cardIndexOnPage = side === 'Left' ? index : index + 16;
-                const card = pageCards[index];
-                const overallCardIndex = startIndex + cardIndexOnPage; // For display number
+                const card = pageCards && index < pageCards.length ? pageCards[index] : null;
+                const overallCardIndex = spreadStartIndex + cardIndexOnPage; // For display number
 
                 // Only apply colored borders if user is logged in and card exists
-                const isInHaveCollection = card && session && isCardInCollection(card.id, 'have', defaultGroup);
-                const isInWantCollection = card && session && isCardInCollection(card.id, 'want', defaultGroup);
+                const isInHaveCollection = card && session && card.id && isCardInCollection(card.id, 'have', defaultGroup);
+                const isInWantCollection = card && session && card.id && isCardInCollection(card.id, 'want', defaultGroup);
 
                 // Determine border style: Want (Purple) > Owned (Green) > Default (Gray)
                 const borderStyle = card
@@ -196,15 +243,20 @@ const CardBinder: React.FC<CardBinderProps> = ({
                     : 'border-gray-300'
                     : 'border-gray-300';
 
-                const marketPrice = card ? getMarketPrice(card.tcgplayer?.prices) : null;
-                const currentQuantity = card && session && isInHaveCollection ? getCardQuantity(card.id, 'have', defaultGroup) : 0;
+                const currentQuantity = card && session && isInHaveCollection && card.id ? getCardQuantity(card.id, 'have', defaultGroup) : 0;
+
+                // Calculate price details outside of JSX
+                const priceDetails = card ? calculatePriceDetails(card) : {
+                  finalPrice: null,
+                  displayClass: 'bg-gray-300',
+                  textClass: 'text-gray-500'
+                };
 
                 return (
                     <div
-                        key={card ? card.id : `empty-${overallCardIndex}`}
+                        key={card ? `${card.id}-${overallCardIndex}` : `empty-${overallCardIndex}`}
                         className={`flex flex-col bg-gray-100 rounded border relative group cursor-pointer transition-shadow duration-150 hover:shadow-lg ${borderStyle}`}
-                        onClick={() => card && handleCardClick(card.id)}
-                        // Remove onContextMenu if it exists (though it doesn't seem to)
+                        onClick={() => card && card.id && handleCardClick(card.id)}
                     >
                          {/* Card Number Overlay - use overall index */}
                          <div className={`absolute top-0.5 left-0.5 text-[10px] font-bold px-1 rounded-sm ${card ? 'bg-black/60 text-white' : 'bg-gray-300 text-gray-600'}`}>
@@ -213,15 +265,15 @@ const CardBinder: React.FC<CardBinderProps> = ({
 
                         {card ? (
                             <>
-                                <Link href={`/cards/${card.id}`} prefetch={false} onClick={(e) => {
+                                <Link href={card.id ? `/cards/${card.id}` : '#'} prefetch={false} onClick={(e) => {
                                     // Prevent the link navigation and use the modal instead
                                     e.preventDefault();
-                                    handleCardClick(card.id);
+                                    if (card.id) handleCardClick(card.id);
                                 }}>
                                     <div className={`flex-grow w-full aspect-[5/7] relative transition-opacity duration-200 ${isInHaveCollection ? 'opacity-70' : 'opacity-100'}`}>
                                         <Image
-                                            src={getProxiedImageUrl(card.images.small)}
-                                            alt={card.name}
+                                            src={getProxiedImageUrl(card.images?.small || '/images/card-placeholder.svg')}
+                                            alt={card.name || 'Unknown Card'}
                                             fill
                                             sizes="(max-width: 768px) 15vw, 10vw"
                                             className="object-contain"
@@ -241,61 +293,21 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                     </div>
                                 </Link>
                                 <div className="flex-shrink-0 p-1 h-[58px] text-center bg-gray-200 w-full border-t border-gray-300">
-                                     <p className="text-[10px] font-medium text-gray-900 truncate leading-tight" title={card.name}>{card.name}</p>
+                                     <p className="text-[10px] font-medium text-gray-900 truncate leading-tight" title={card.name || 'Unknown Card'}>{card.name || 'Unknown Card'}</p>
                                      <p className="text-[9px] text-gray-600 leading-tight">{card.rarity || 'N/A'}</p>
 
-                                     {/* Use getBestAvailablePrice for better pricing fallback */}
-                                     {useMemo(() => {
-                                         // Try to get the best price from the card data
-                                         const bestPrice = card ? getBestAvailablePrice(card.tcgplayer?.prices) : null;
-
-                                         // Always try to get the price from our robust cache first
-                                         // This ensures we use the most persistent price available
-                                         const robustCachedPrice = card ? getBestPrice(card.id, null) : 0;
-
-                                         // Fall back to the original cache if needed
-                                         const originalCachedPrice = card ? getCardPrice(card.id) : null;
-
-                                         // Use the best available price with this priority:
-                                         // 1. Robust cache
-                                         // 2. Original cache
-                                         // 3. API price
-                                         // 4. Fallback price
-                                         let finalPrice;
-                                         if (robustCachedPrice > 0) {
-                                             finalPrice = robustCachedPrice;
-                                         } else if (originalCachedPrice !== undefined && originalCachedPrice > 0) {
-                                             finalPrice = originalCachedPrice;
-                                         } else if (bestPrice !== null && bestPrice > 0) {
-                                             finalPrice = bestPrice;
-                                         } else if (card) {
-                                             finalPrice = getCardPriceWithFallback(card.id, bestPrice);
-                                         } else {
-                                             finalPrice = null;
-                                         }
-
-                                         // Store the price in our cache if it's valid
-                                         // This will be handled by the storePrice function with debouncing
-                                         if (card && finalPrice !== null && finalPrice > 0) {
-                                             // Only store the price using the robust cache function
-                                             // which will handle debouncing and prevent duplicate storage
-                                             storePrice(card.id, finalPrice);
-                                         }
-
-                                         return (
-                                             <div className={`mt-0.5 py-0.5 px-1 rounded ${finalPrice ? 'bg-gray-800' : 'bg-gray-500'}`}>
-                                                 <p className={`text-[10px] font-bold leading-tight ${finalPrice ? 'text-yellow-300' : 'text-white'}`}>
-                                                     {finalPrice ? formatPrice(finalPrice) : 'No Price'}
-                                                 </p>
-                                             </div>
-                                         );
-                                     }, [card?.id])}
+                                     {/* Price display using precomputed details */}
+                                     <div className={`mt-0.5 py-0.5 px-1 rounded ${priceDetails.displayClass}`}>
+                                         <p className={`text-[10px] font-bold leading-tight ${priceDetails.textClass}`}>
+                                             {priceDetails.finalPrice ? formatPrice(priceDetails.finalPrice) : 'No Price'}
+                                         </p>
+                                     </div>
 
                                      <p className="text-[8px] text-gray-600 leading-none mt-0.5">Market Price</p>
                                 </div>
 
                                 {/* --- ADD QUANTITY CONTROLS START --- */}
-                                {session && isInHaveCollection && !isExploreView && (
+                                {session && isInHaveCollection && !isExploreView && card.id && (
                                     <div
                                         // Stop propagation so clicking controls doesn't open modal
                                         onClick={(e) => e.stopPropagation()}
@@ -306,7 +318,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                             type="button"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                removeCardFromCollection(card.id, 'have', defaultGroup);
+                                                if (card.id) removeCardFromCollection(card.id, 'have', defaultGroup);
                                             }}
                                             className="px-2.5 py-0.5 text-white bg-red-600 hover:bg-red-700 rounded-l text-lg font-bold leading-none disabled:opacity-50 disabled:cursor-not-allowed"
                                             aria-label="Decrease quantity"
@@ -323,7 +335,7 @@ const CardBinder: React.FC<CardBinderProps> = ({
                                             type="button"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                addCardToCollection(card.id, card, 'have', defaultGroup);
+                                                if (card.id) addCardToCollection(card.id, card, 'have', defaultGroup);
                                             }}
                                             className="px-2.5 py-0.5 text-white bg-green-600 hover:bg-green-700 rounded-r text-lg font-bold leading-none disabled:opacity-50"
                                             aria-label="Increase quantity"
@@ -353,9 +365,9 @@ const CardBinder: React.FC<CardBinderProps> = ({
                 );
             })}
         </div>
-    </div>
-  );
- };
+      </div>
+    );
+  };
 
   return (
     <div className="w-full flex flex-col items-center bg-white p-5 rounded-lg shadow border border-gray-200">
@@ -367,122 +379,99 @@ const CardBinder: React.FC<CardBinderProps> = ({
 
          {/* Enhanced Pagination Controls */}
          <div className="text-center text-sm text-gray-600 mt-4 flex items-center justify-center flex-wrap gap-2 w-full">
-             <button
-                 type="button"
-                 onClick={() => {
-                     goToPreviousPage();
-                 }}
-                 disabled={currentPage === 1 || isLoading}
-                 className="px-4 py-2 rounded text-xs font-semibold transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                 aria-label="Previous Page"
-             >
-                 &lt; Prev
-             </button>
-             {/* Page Number Buttons */}
-             {paginationItems.map((item, index) => (
-                 typeof item === 'number' ? (
+             {/* Only show pagination if there are pages to navigate */}
+             {totalPages > 0 && (
+                 <>
                      <button
                          type="button"
-                         key={`page-${item}`}
-                         onClick={() => {
-                             goToPage(item);
-                         }}
-                         disabled={item === currentPage || isLoading}
-                         className={`px-4 py-2 rounded text-xs font-semibold transition-colors min-w-[36px] ${ // Ensure minimum tap area
-                             item === currentPage
-                                 ? 'bg-blue-600 text-white cursor-default'
-                                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed'
-                         }`}
-                         aria-label={`Go to page ${item}`}
-                         aria-current={item === currentPage ? 'page' : undefined}
+                         onClick={goToPreviousPage}
+                         disabled={currentPage <= 1 || isLoading}
+                         className="px-4 py-2 rounded text-xs font-semibold transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                         aria-label="Previous Page"
                      >
-                         {item}
+                         &lt; Prev
                      </button>
-                 ) : (
-                     <span key={`ellipsis-${index}`} className="px-2 py-2 text-gray-400">
-                         ...
-                     </span>
-                 )
-             ))}
 
-             {/* Direct Page Navigation */}
-             <div className="flex items-center gap-1">
-                <span className="text-xs font-medium">Go to:</span>
-                <input
-                    type="number"
-                    min="1"
-                    max={totalPages}
-                    className="w-14 h-8 px-2 py-1 text-xs border border-gray-300 rounded-md text-center"
-                    placeholder="#"
-                    title="Enter page number"
-                    aria-label="Page number input"
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                            const pageNum = parseInt((e.target as HTMLInputElement).value);
-                            if (!isNaN(pageNum) && pageNum >= 1) {
-                                // Handle page numbers beyond known valid range
-                                const MAX_KNOWN_VALID_PAGE = 420;
-                                if (pageNum > MAX_KNOWN_VALID_PAGE) {
-                                    if (confirm(`Page ${pageNum} may not have data. The last known valid page is 420. Would you like to go to page 420 instead?`)) {
-                                        goToPage(MAX_KNOWN_VALID_PAGE);
-                                    } else {
-                                        // User wants to try the high page anyway
-                                        goToPage(pageNum);
-                                    }
-                                } else if (pageNum <= totalPages) {
-                                    goToPage(pageNum);
-                                } else {
-                                    alert(`Please enter a page number between 1 and ${totalPages}`);
-                                }
-                            } else {
-                                alert(`Please enter a valid page number`);
-                            }
-                        }
-                    }}
-                    disabled={isLoading}
-                />
-                <button
-                    type="button"
-                    onClick={(e) => {
-                        const input = (e.target as HTMLElement).previousElementSibling as HTMLInputElement;
-                        const pageNum = parseInt(input.value);
-                        if (!isNaN(pageNum) && pageNum >= 1) {
-                            // Handle page numbers beyond known valid range
-                            const MAX_KNOWN_VALID_PAGE = 420;
-                            if (pageNum > MAX_KNOWN_VALID_PAGE) {
-                                if (confirm(`Page ${pageNum} may not have data. The last known valid page is 420. Would you like to go to page 420 instead?`)) {
-                                    goToPage(MAX_KNOWN_VALID_PAGE);
-                                } else {
-                                    // User wants to try the high page anyway
-                                    goToPage(pageNum);
-                                }
-                            } else if (pageNum <= totalPages) {
-                                goToPage(pageNum);
-                            } else {
-                                alert(`Please enter a page number between 1 and ${totalPages}`);
-                            }
-                        } else {
-                            alert(`Please enter a valid page number`);
-                        }
-                    }}
-                    disabled={isLoading}
-                    className="px-2 py-1 h-8 rounded text-xs font-semibold transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    Go
-                </button>
-             </div>
+                     {/* Dynamic pagination numbers */}
+                     {paginationItems.map((item, index) => (
+                         typeof item === 'number' ? (
+                             <button
+                                 key={`page-${item}`}
+                                 type="button"
+                                 onClick={() => goToPage(item)}
+                                 disabled={isLoading}
+                                 className={`w-8 h-8 rounded text-xs font-semibold transition-colors ${
+                                     item === currentPage
+                                         ? 'bg-blue-600 text-white cursor-default'
+                                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed'
+                                 }`}
+                                 aria-label={`Go to page ${item}`}
+                                 aria-current={item === currentPage ? 'page' : undefined}
+                             >
+                                 {item}
+                             </button>
+                         ) : (
+                             <span key={`ellipsis-${index}`} className="px-2 py-2 text-gray-400">
+                                 ...
+                             </span>
+                         )
+                     ))}
 
-             <button
-                 type="button"
-                 onClick={() => {
-                     goToNextPage();
-                 }}
-                 disabled={currentPage >= totalPages || isLoading}
-                 className="px-4 py-2 rounded text-xs font-semibold transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                 aria-label="Next Page"
-             >
-                 Next &gt;
-             </button>
+                     {/* Direct Page Navigation - only show if there are pages */}
+                     {totalPages > 0 && (
+                         <>
+                             <div className="flex items-center gap-1">
+                                <span className="text-xs font-medium">Go to:</span>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max={totalPages}
+                                    className="w-14 h-8 px-2 py-1 text-xs border border-gray-300 rounded-md text-center"
+                                    placeholder="#"
+                                    title="Enter page number"
+                                    aria-label="Page number input"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            const pageNum = parseInt((e.target as HTMLInputElement).value);
+                                            if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                                                goToPage(pageNum);
+                                                // Optional: Reset input
+                                                (e.target as HTMLInputElement).value = '';
+                                            }
+                                        }
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        const input = e.currentTarget.previousSibling as HTMLInputElement;
+                                        const pageNum = parseInt(input.value);
+                                        if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                                            goToPage(pageNum);
+                                            // Optional: Reset input
+                                            input.value = '';
+                                        }
+                                    }}
+                                    disabled={isLoading}
+                                    className="h-8 px-2 text-xs font-medium bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Go
+                                </button>
+                             </div>
+
+                             <button
+                                 type="button"
+                                 onClick={goToNextPage}
+                                 disabled={currentPage >= totalPages || isLoading}
+                                 className="px-4 py-2 rounded text-xs font-semibold transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                 aria-label="Next Page"
+                             >
+                                 Next &gt;
+                             </button>
+                         </>
+                     )}
+                 </>
+             )}
          </div>
 
          {/* Only show this message if user is logged in */}
@@ -492,6 +481,6 @@ const CardBinder: React.FC<CardBinderProps> = ({
          <SimpleCardDetailModal cardId={selectedCardId} onClose={handleCloseModal} />
     </div>
   );
-} // Close CardBinder component function body
+};
 
 export default CardBinder;

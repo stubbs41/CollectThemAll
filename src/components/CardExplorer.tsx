@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect, useCallback } from 'react'; // Import hooks
 import CardBinder from "@/components/CardBinder";
-// No longer need fetchAllPokemonCards here
 import { PokemonCard } from "@/lib/types";
-// Placeholder import for the filter panel
 import FilterPanel from './explore/FilterPanel';
-// Import the price cache functions
 import { applyPricesToCards } from '@/lib/priceCache';
+// Import the enhanced search functionality
+import { initializeSearchIndexes, searchCardsByName } from '@/lib/enhancedSearch';
 
 const CARDS_PER_PAGE = 32; // Define cards per page (should match binder spread)
 
@@ -58,7 +57,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
   });
   const [isLoadingFilters, setIsLoadingFilters] = useState(true);
 
-  // --- Fetch Filter Options ---
+  // --- Fetch Filter Options and Initialize from URL Parameters ---
   useEffect(() => {
     async function fetchFilterOptions() {
       setIsLoadingFilters(true);
@@ -82,7 +81,54 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
       }
     }
     fetchFilterOptions();
+
+    // Check URL parameters for search query and page number
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      const searchParam = url.searchParams.get('q'); // Use 'q' parameter to match the API
+      const pageParam = url.searchParams.get('page');
+
+      // Set search query if present in URL
+      if (searchParam) {
+        setSearchQuery(searchParam);
+        setActiveSearchTerm(searchParam);
+        setSearchPerformed(true);
+      }
+
+      // Set page number if present in URL
+      if (pageParam) {
+        const pageNumber = parseInt(pageParam, 10);
+        if (!isNaN(pageNumber) && pageNumber > 0) {
+          setCurrentPage(pageNumber);
+        }
+      }
+
+      // Set filters if present in URL
+      const newFilters: FilterState = {};
+      if (url.searchParams.get('set')) newFilters.set = url.searchParams.get('set') || undefined;
+      if (url.searchParams.get('rarity')) newFilters.rarity = url.searchParams.get('rarity') || undefined;
+      if (url.searchParams.get('type')) newFilters.type = url.searchParams.get('type') || undefined;
+      if (url.searchParams.get('supertype')) newFilters.supertype = url.searchParams.get('supertype') || undefined;
+
+      // Only update filters if there are any
+      if (Object.values(newFilters).some(v => v)) {
+        setFilters(newFilters);
+      }
+    }
   }, []); // Fetch once on mount
+
+  // Initialize search indexes when component mounts
+  useEffect(() => {
+    // Initialize the enhanced search indexes
+    initializeSearchIndexes()
+      .then(() => {
+        console.log("Enhanced search indexes initialized successfully");
+      })
+      .catch(error => {
+        console.error("Failed to initialize search indexes:", error);
+        // We'll fall back to API-based search when searching, so no need to show an error
+      });
+  }, [currentPage]);
 
   // --- Function to update filters ---
   const updateFilters = (newFilters: Partial<FilterState>) => {
@@ -121,6 +167,23 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
     });
     const filterQueryString = filterParams.toString();
     const apiUrl = `/api/cards-paged?page=${pageToFetch}&limit=${CARDS_PER_PAGE}${filterQueryString ? '&' + filterQueryString : ''}`;
+
+    // Update the URL with the page number without causing a full page refresh
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      // Don't clear search parameter if we're not searching
+      // url.searchParams.delete('search');
+      url.searchParams.set('page', pageToFetch.toString());
+      // Add filter parameters to the URL
+      Object.entries(currentFilters).forEach(([key, value]) => {
+        if (value) {
+          url.searchParams.set(key, value);
+        } else {
+          url.searchParams.delete(key);
+        }
+      });
+      window.history.replaceState({}, '', url.toString());
+    }
 
     console.log(`CardExplorer: Fetching ${apiUrl}`);
     setIsLoading(true);
@@ -161,10 +224,11 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
           }
 
           // Apply cached prices to the fetched cards
-          const cardsWithPrices = applyPricesToCards(data.cards);
+          // Ensure the result is typed as PokemonCard[]
+          const cardsWithPrices = applyPricesToCards(data.cards as PokemonCard[]);
 
           // Set fetched cards with prices applied
-          setFetchedCards(cardsWithPrices);
+          setFetchedCards(cardsWithPrices as PokemonCard[]);
           setTotalPages(data.totalPages || Math.ceil(data.totalCount / CARDS_PER_PAGE));
         }
       })
@@ -187,7 +251,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
       console.log("CardExplorer: Aborting fetch for page", pageToFetch);
       controller.abort();
     };
-  }, []);
+  }, [currentPage]);
 
   // Function to search for cards (SEARCH TERM ONLY)
   const searchCards = useCallback(async (query: string, pageToFetch: number /* Remove currentFilters here */) => {
@@ -202,6 +266,14 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
     const apiUrl = `/api/cards-search?q=${encodeURIComponent(query)}&page=${pageToFetch}&limit=${CARDS_PER_PAGE}${isSpecificPokemonSearch ? '&directSearch=true' : ''}`;
     // -- Only search by name --
 
+    // Update the URL with the search query and page number without causing a full page refresh
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('q', query); // Use 'q' parameter to match the API
+      url.searchParams.set('page', pageToFetch.toString());
+      window.history.replaceState({}, '', url.toString());
+    }
+
     if (!query.trim()) {
       // If query is empty, revert to normal page view (fetchDataForPage will be called by useEffect)
       setSearchPerformed(false);
@@ -212,7 +284,11 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
     console.log(`CardExplorer: Searching ${apiUrl} ${isSpecificPokemonSearch ? '(Direct Pokémon search)' : '(Name only)'}`);
     setIsLoading(true);
     setError(null);
+    setEmptyPageMessage(null); // Clear any previous empty page message
     setIsSearching(true);
+    setFetchedCards([]); // Clear previous results to avoid pagination issues
+    setDisplayedCards([]); // Clear displayed cards
+    setTotalPages(1); // Reset total pages to avoid pagination issues
 
     // Use AbortController for cleanup
     const controller = new AbortController();
@@ -249,6 +325,8 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
           } else {
             setEmptyPageMessage(`No cards found matching "${query}" on page ${pageToFetch}.`);
           }
+          // Reset pagination when no results are found
+          setTotalPages(1);
         } else if (data.redirected && data.message) {
           // Handle page redirection message
           setEmptyPageMessage(data.message);
@@ -264,10 +342,12 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
         const cardsWithPrices = applyPricesToCards(data.cards);
 
         // Set fetched cards with prices applied
-        setFetchedCards(cardsWithPrices);
+        setFetchedCards(cardsWithPrices as PokemonCard[]);
 
         // Client-side filtering will happen in useEffect to set displayedCards
-        setTotalPages(data.totalPages || Math.ceil(data.totalCount / CARDS_PER_PAGE)); // Pagination based on search total
+        // Make sure totalPages is at least 1 to avoid pagination issues
+        const calculatedTotalPages = Math.max(1, data.totalPages || Math.ceil(data.totalCount / CARDS_PER_PAGE));
+        setTotalPages(calculatedTotalPages); // Pagination based on search total
         setSearchPerformed(true);
       }
     } catch (err) {
@@ -277,6 +357,8 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
         console.error(`CardExplorer: Error searching for "${query}":`, err);
         setError((err as Error).message || 'Failed to search for cards.');
         setDisplayedCards([]);
+        setFetchedCards([]);
+        setTotalPages(1); // Reset total pages on error
       }
     } finally {
       if (!signal.aborted) {
@@ -289,6 +371,65 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
       console.log("CardExplorer: Aborting search for query", query);
       controller.abort();
     };
+  }, [currentPage]);
+
+  // Function to search for cards using our enhanced client-side search
+  const searchCardsEnhanced = useCallback(async (query: string, pageToFetch: number) => {
+    if (!query.trim()) {
+      // If query is empty, revert to normal page view
+      setSearchPerformed(false);
+      return;
+    }
+
+    // Update the URL with the search query and page number
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('q', query);
+      url.searchParams.set('page', pageToFetch.toString());
+      window.history.replaceState({}, '', url.toString());
+    }
+
+    console.log(`CardExplorer: Searching for "${query}" using enhanced search engine`);
+    setIsLoading(true);
+    setError(null);
+    setEmptyPageMessage(null);
+    setIsSearching(true);
+    setFetchedCards([]);
+    setDisplayedCards([]);
+    setTotalPages(1);
+
+    try {
+      // Use our enhanced search function that uses the pre-built indexes
+      const results = await searchCardsByName(query, pageToFetch, CARDS_PER_PAGE);
+      console.log(`CardExplorer: Enhanced search received ${results.cards.length} cards for "${query}"`);
+      // Handle empty results
+      if (results.cards.length === 0) {
+        setEmptyPageMessage(`No cards found matching "${query}".`);
+        setTotalPages(1);
+      } else {
+        setEmptyPageMessage(null);
+        setTotalPages(results.totalPages);
+      }
+      // Apply cached prices to the fetched cards
+      const cardsWithPrices = applyPricesToCards(results.cards);
+      setFetchedCards(cardsWithPrices);
+      setSearchPerformed(true);
+    } catch (err) {
+      // --- PATCH: Show clear error and DO NOT fall back to API in local dev ---
+      console.error(`CardExplorer: Error searching for "${query}":`, err);
+      setError(
+        'Local search indexes are missing or failed to load.\n' +
+        'Please run your data preparation scripts (see README) to generate local search indexes in public/data/indexes/.\n' +
+        'Search will not work until these files are present.'
+      );
+      setDisplayedCards([]);
+      setFetchedCards([]);
+      setTotalPages(1);
+      // DO NOT fall back to API in local dev
+    } finally {
+      setIsLoading(false);
+      setIsSearching(false);
+    }
   }, []);
 
   // --- Client-side filtering logic ---
@@ -313,17 +454,42 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
   useEffect(() => {
     console.log("Effect triggered: searchPerformed=", searchPerformed, "currentPage=", currentPage, "filters=", filters, "activeSearchTerm=", activeSearchTerm); // Log effect trigger
 
-    if (searchPerformed && activeSearchTerm.trim()) {
-      // Search is active: Call search API (which sets fetchedCards)
-      console.log("Calling searchCards API...");
-      searchCards(activeSearchTerm, currentPage);
-    } else {
-      // No search: Call paged API with filters (sets fetchedCards and displayedCards)
-      console.log("Calling fetchDataForPage API...");
-      fetchDataForPage(currentPage, filters);
+    try {
+      if (searchPerformed && activeSearchTerm.trim()) {
+        // Search is active: Try enhanced search first, then fall back to API if needed
+        console.log("Using enhanced search for:", activeSearchTerm);
+        try {
+          // Use our enhanced client-side search
+          searchCardsEnhanced(activeSearchTerm, currentPage);
+        } catch (searchError) {
+          console.error("Error in enhanced search, falling back to API:", searchError);
+          // If enhanced search fails, fall back to the API-based search
+          searchCards(activeSearchTerm, currentPage);
+        }
+      } else {
+        // No search: Call paged API with filters (sets fetchedCards and displayedCards)
+        console.log("Calling fetchDataForPage API...");
+        try {
+          fetchDataForPage(currentPage, filters);
+        } catch (fetchError) {
+          console.error("Error in fetchDataForPage:", fetchError);
+          setError("Failed to fetch card data. Please try again.");
+          setIsLoading(false);
+          setFetchedCards([]);
+          setDisplayedCards([]);
+          setTotalPages(1);
+        }
+      }
+    } catch (error) {
+      console.error("Error in data fetching effect:", error);
+      setError("Failed to fetch data. Please try again.");
+      setIsLoading(false);
+      setFetchedCards([]);
+      setDisplayedCards([]);
+      setTotalPages(1);
     }
     // Cleanup function is handled by the specific fetch/search calls
-  }, [currentPage, filters, searchPerformed, activeSearchTerm, fetchDataForPage, searchCards]);
+  }, [currentPage, filters, searchPerformed, activeSearchTerm, fetchDataForPage, searchCards, searchCardsEnhanced]);
 
   // Helper function to preserve price data between card updates
   // Now uses the global price cache
@@ -332,23 +498,188 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
     return applyPricesToCards(newCards);
   }, []);
 
+  // Pagination handlers with URL updates
+  const goToNextPage = useCallback(() => {
+    const nextPage = Math.min(currentPage + 1, totalPages);
+    setCurrentPage(nextPage);
+
+    // Update URL while preserving other parameters
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('page', nextPage.toString());
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [currentPage, totalPages]);
+
+  const goToPreviousPage = useCallback(() => {
+    const prevPage = Math.max(currentPage - 1, 1);
+    setCurrentPage(prevPage);
+
+    // Update URL while preserving other parameters
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('page', prevPage.toString());
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [currentPage]);
+
+  // Handler to go to a specific page
+  const goToPage = useCallback((pageNumber: number) => {
+    if (pageNumber >= 1 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+
+      // Update URL while preserving other parameters
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', pageNumber.toString());
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [totalPages]);
+
+  // --- Render content based on state ---
+  const renderCardContent = () => {
+    // Handle loading state
+    if (isLoading && displayedCards.length === 0) {
+      return <div className="text-center p-10 text-lg text-gray-500">Loading Pokémon cards...</div>;
+    }
+
+    // Handle error state
+    if (error) {
+      return (
+        <div className="text-center p-10">
+          <p className="text-lg text-red-600 mb-2">Error: {error}</p>
+          <div className="flex justify-center gap-4 mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                if (searchPerformed) {
+                  handleClearSearch();
+                } else {
+                  setCurrentPage(1);
+                  fetchDataForPage(1, {});
+                }
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Handle empty page message
+    if (emptyPageMessage) {
+      return (
+        <div className="text-center p-10">
+          <p className="text-lg text-amber-600 mb-2">{emptyPageMessage}</p>
+          <p className="text-md text-gray-600">Try navigating to a lower page number or adjusting your search/filters.</p>
+          <div className="flex justify-center gap-4 mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                if (searchPerformed) {
+                  // If we're searching, go to page 1 of search results
+                  setCurrentPage(1);
+                  searchCards(activeSearchTerm, 1);
+                } else {
+                  // Otherwise go to page 1 of regular browsing
+                  setCurrentPage(1);
+                  fetchDataForPage(1, filters);
+                }
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              Go to First Page
+            </button>
+            {emptyPageMessage.includes('exceeds the maximum available data') && (
+              <button
+                type="button"
+                onClick={() => setCurrentPage(420)} // Hard-coded known last valid page
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+              >
+                Go to Last Valid Page (420)
+              </button>
+            )}
+            {searchPerformed && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+              >
+                Clear Search
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Handle no results
+    if (!isLoading && displayedCards.length === 0) {
+      return (
+        <div className="text-center p-10">
+          <p className="text-lg text-gray-500 mb-2">
+            {searchPerformed ? `No cards found matching "${activeSearchTerm}"${Object.values(filters).some(v=>v) ? ' and filters' : ''}.` : 'No cards found matching filters.'}
+          </p>
+          <div className="flex justify-center gap-4 mt-4">
+            {searchPerformed && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                Clear Search
+              </button>
+            )}
+            {Object.values(filters).some(v=>v) && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Render card binder with results
+    return (
+      <CardBinder
+        // -- Pass displayedCards --
+        cards={displayedCards}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        goToNextPage={goToNextPage}
+        goToPreviousPage={goToPreviousPage}
+        goToPage={goToPage}
+        isLoading={isLoading}
+        isExploreView={true} // This is the explore view
+      />
+    );
+  };
+
   // --- Effect to apply client-side filters AFTER search results arrive ---
   useEffect(() => {
-    if (searchPerformed) {
-      // Only apply client filters when in search mode
-      const newlyFilteredCards = applyClientSideFilters(fetchedCards, filters);
-      console.log(`Client-side filtering complete. Displaying ${newlyFilteredCards.length} of ${fetchedCards.length} fetched cards.`);
+    // Always run this effect regardless of search state
+    // This ensures hooks are always called in the same order
+    const newlyFilteredCards = searchPerformed
+      ? applyClientSideFilters(fetchedCards, filters)
+      : fetchedCards;
 
-      // Use the helper function to preserve price data
-      const cardsWithPreservedPrices = preservePriceData(displayedCards, newlyFilteredCards);
-      setDisplayedCards(cardsWithPreservedPrices);
-    } else {
-      // If not searching, ensure displayedCards reflects fetchedCards
-      // But preserve price data
-      const cardsWithPreservedPrices = preservePriceData(displayedCards, fetchedCards);
-      setDisplayedCards(cardsWithPreservedPrices);
+    if (searchPerformed) {
+      console.log(`Client-side filtering complete. Displaying ${newlyFilteredCards.length} of ${fetchedCards.length} fetched cards.`);
     }
-  }, [fetchedCards, filters, searchPerformed, preservePriceData]); // Rerun when fetchedCards or filters change in search mode
+
+    // Use the helper function to preserve price data
+    // Remove displayedCards from the preservePriceData call to avoid infinite loop
+    setDisplayedCards(newlyFilteredCards);
+  }, [fetchedCards, filters, searchPerformed, preservePriceData]); // Removed displayedCards from dependency array
 
   // Handle search form submission
   const handleSearch = (e: React.FormEvent) => {
@@ -372,6 +703,14 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
     setSearchPerformed(false);
     // No need to reset filters here, maybe user wants to keep them?
     // Let useEffect handle refetching paged data without search term
+
+    // Update the URL to remove the search parameter
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('q'); // Use 'q' parameter to match the API
+      window.history.replaceState({}, '', url.toString());
+    }
+
     if (currentPage !== 1) {
         setCurrentPage(1); // Reset page if needed
     } else {
@@ -382,21 +721,7 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
     }
   };
 
-  // Pagination handlers
-  const goToNextPage = () => {
-    setCurrentPage(prev => Math.min(prev + 1, totalPages));
-  };
 
-  const goToPreviousPage = () => {
-    setCurrentPage(prev => Math.max(prev - 1, 1));
-  };
-
-  // New handler to go to a specific page
-  const goToPage = (pageNumber: number) => {
-    if (pageNumber >= 1 && pageNumber <= totalPages) {
-      setCurrentPage(pageNumber);
-    }
-  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -508,52 +833,8 @@ export default function CardExplorer() { // Changed from HomePage to CardExplore
       )}
 
       {/* Loading state - Check isLoading, not displayedCards.length */}
-      {isLoading && displayedCards.length === 0 ? (
-        <div className="text-center p-10 text-lg text-gray-500">Loading Pokémon cards...</div>
-      ) : error ? (
-        <div className="text-center p-10 text-lg text-red-600">Error: {error}</div>
-      // -- Check for empty page message --
-      ) : emptyPageMessage ? (
-        <div className="text-center p-10">
-          <p className="text-lg text-amber-600 mb-2">{emptyPageMessage}</p>
-          <p className="text-md text-gray-600">Try navigating to a lower page number or adjusting your search/filters.</p>
-          <div className="flex justify-center gap-4 mt-4">
-            <button
-              type="button"
-              onClick={() => setCurrentPage(1)}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-            >
-              Go to First Page
-            </button>
-            {emptyPageMessage.includes('exceeds the maximum available data') && (
-              <button
-                type="button"
-                onClick={() => setCurrentPage(420)} // Hard-coded known last valid page
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-              >
-                Go to Last Valid Page (420)
-              </button>
-            )}
-          </div>
-        </div>
-      // -- Check displayedCards for empty message --
-      ) : !isLoading && displayedCards.length === 0 ? (
-          <div className="text-center p-10 text-lg text-gray-500">
-              {searchPerformed ? `No cards found matching "${activeSearchTerm}"${Object.values(filters).some(v=>v) ? ' and filters' : ''}.` : 'No cards found matching filters.'}
-          </div>
-      ) : (
-        <CardBinder
-          // -- Pass displayedCards --
-          cards={displayedCards}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          goToNextPage={goToNextPage}
-          goToPreviousPage={goToPreviousPage}
-          goToPage={goToPage}
-          isLoading={isLoading}
-          isExploreView={true} // This is the explore view
-        />
-      )}
+      {renderCardContent()}
+
     </div>
   );
 }

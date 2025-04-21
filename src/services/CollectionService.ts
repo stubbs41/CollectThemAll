@@ -86,25 +86,36 @@ export default class CollectionService {
    * Fetch collections from the database
    */
   async fetchCollections(): Promise<Map<string, { have: Map<string, CollectionItem>; want: Map<string, CollectionItem> }>> {
-    // If cache is valid, return it
-    if (this.isCacheValid()) {
-      return this.cache.groups;
-    }
+    console.log('CollectionService: fetchCollections called');
+
+    // Always invalidate cache to ensure we get fresh data
+    this.invalidateCache();
+    console.log('CollectionService: Cache invalidated to ensure fresh data');
 
     // Check authentication
+    console.log('CollectionService: Checking authentication');
     const { data: { session } } = await this.supabase.auth.getSession();
     if (!session || !session.user) {
+      console.log('CollectionService: No authenticated session found');
       return new Map();
     }
 
+    console.log('CollectionService: User authenticated, fetching collections');
+
     try {
       // First, fetch all collection groups to ensure we have all groups in the cache
+      console.log('CollectionService: Fetching collection groups');
       const { data: groups, error: groupsError } = await this.supabase
         .from('collection_groups')
         .select('name')
         .eq('user_id', session.user.id);
 
-      if (groupsError) throw groupsError;
+      if (groupsError) {
+        console.error('CollectionService: Error fetching collection groups:', groupsError);
+        throw groupsError;
+      }
+
+      console.log('CollectionService: Collection groups fetched:', groups?.length || 0);
 
       // Reset cache
       this.cache.groups = new Map();
@@ -117,25 +128,52 @@ export default class CollectionService {
             want: new Map()
           });
         });
+      } else {
+        // If no groups found, create a default group
+        console.log('CollectionService: No groups found, creating Default group');
+        this.cache.groups.set('Default', {
+          have: new Map(),
+          want: new Map()
+        });
       }
 
       // Cache is now initialized with groups from the database
 
       // Fetch all collections
+      console.log('CollectionService: Fetching all collections');
       const { data: allData, error: fetchError } = await this.supabase
         .from('collections')
         .select('*')
         .eq('user_id', session.user.id);
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('CollectionService: Error fetching collections:', fetchError);
+        throw fetchError;
+      }
+
+      console.log('CollectionService: Collections fetched:', allData?.length || 0);
+
+      // Log sample data for debugging
+      if (allData && allData.length > 0) {
+        console.log('CollectionService: Sample collection item:', allData[0]);
+
+        // Check if market_price is included in the response
+        const hasPrices = allData.some(item => item.market_price !== undefined && item.market_price !== null);
+        console.log(`CollectionService: Collection data includes market prices: ${hasPrices}`);
+
+        // Count items with valid prices
+        const itemsWithPrice = allData.filter(item => item.market_price && item.market_price > 0).length;
+        console.log(`CollectionService: Items with valid prices: ${itemsWithPrice} of ${allData.length}`);
+      }
 
       // Group collections by group_name
-      if (allData) {
+      if (allData && allData.length > 0) {
         allData.forEach(item => {
           const groupName = item.group_name || 'Default';
 
           // Ensure group exists in cache (should already be there from the groups fetch)
           if (!this.cache.groups.has(groupName)) {
+            console.log(`CollectionService: Creating missing group in cache: ${groupName}`);
             this.cache.groups.set(groupName, {
               have: new Map(),
               want: new Map()
@@ -159,13 +197,16 @@ export default class CollectionService {
             group.want.set(item.card_id, item);
           }
         });
+      } else {
+        console.log('CollectionService: No collections found');
       }
 
       this.cache.lastFetched = Date.now();
+      console.log('CollectionService: Collections cached at', new Date(this.cache.lastFetched).toLocaleString());
 
       return this.cache.groups;
     } catch (error) {
-      console.error('Error fetching collections:', error);
+      console.error('CollectionService: Error fetching collections:', error);
       return new Map();
     }
   }
@@ -692,13 +733,17 @@ export default class CollectionService {
    * Fetch collection groups from the database
    */
   async fetchCollectionGroups(): Promise<any[]> {
+    console.log('CollectionService: fetchCollectionGroups called');
+
     // Check authentication
     const { data: { session } } = await this.supabase.auth.getSession();
     if (!session || !session.user) {
+      console.log('CollectionService: No authenticated session found for fetchCollectionGroups');
       return [];
     }
 
     try {
+      console.log('CollectionService: Fetching collection groups for user:', session.user.id);
       // Fetch all collection groups
       const { data: groups, error } = await this.supabase
         .from('collection_groups')
@@ -706,16 +751,36 @@ export default class CollectionService {
         .eq('user_id', session.user.id)
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('CollectionService: Error fetching collection groups:', error);
+        throw error;
+      }
 
       // Return the groups as is
       if (!groups || groups.length === 0) {
+        console.log('CollectionService: No collection groups found');
+
+        // Create a default group if none exists
+        console.log('CollectionService: Creating default collection group');
+        const result = await this.createCollectionGroup('Default', 'Default collection group');
+        if (result.success && result.id) {
+          console.log('CollectionService: Default group created with ID:', result.id);
+          // Fetch the newly created group
+          const { data: newGroups } = await this.supabase
+            .from('collection_groups')
+            .select('*')
+            .eq('id', result.id);
+
+          return newGroups || [];
+        }
+
         return [];
       }
 
+      console.log('CollectionService: Fetched', groups.length, 'collection groups');
       return groups;
     } catch (error) {
-      console.error('Error fetching collection groups:', error);
+      console.error('CollectionService: Error fetching collection groups:', error);
       return [];
     }
   }

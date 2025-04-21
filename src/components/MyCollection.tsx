@@ -29,6 +29,7 @@ import { storePrice, getBestPrice, applyPricesToItems, initializeCache } from '@
 import { PokemonCard } from '@/lib/types';
 import SimpleCardDetailModal from '@/components/SimpleCardDetailModal';
 import { fetchCardDetails } from '@/lib/pokemonApi';
+import GoogleSignIn from '@/components/GoogleSignIn';
 
 // Define a type for the collection items we expect from the API
 interface CollectionItem {
@@ -300,8 +301,8 @@ export default function MyCollection() {
         const updatedPrice = localCollectionUpdates.get(priceKey);
         updatedItem.market_price = updatedPrice as number;
         // Store the price in BOTH our caches for maximum persistence
-        storeCardPrice(item.card_id, updatedPrice as number);
-        storePrice(item.card_id, updatedPrice as number);
+        storeCardPrice(item.card_id, updatedPrice);
+        storePrice(item.card_id, updatedPrice);
       } else {
         // Fall back to the original cache as a last resort
         const fallbackPrice = getCardPriceWithFallback(item.card_id, updatedItem.market_price);
@@ -358,28 +359,28 @@ export default function MyCollection() {
       // Apply set filter
       if (advancedFilterCriteria.set) {
         result = result.filter(item =>
-          item.card?.set?.name === advancedFilterCriteria.set
+          (item as any).set?.name === advancedFilterCriteria.set
         );
       }
 
       // Apply rarity filter
       if (advancedFilterCriteria.rarity) {
         result = result.filter(item =>
-          item.card?.rarity === advancedFilterCriteria.rarity
+          (item as any).rarity === advancedFilterCriteria.rarity
         );
       }
 
       // Apply type filter
       if (advancedFilterCriteria.type) {
         result = result.filter(item =>
-          item.card?.types?.includes(advancedFilterCriteria.type!)
+          Array.isArray((item as any).types) && (item as any).types.includes(advancedFilterCriteria.type!)
         );
       }
 
       // Apply subtype filter
       if (advancedFilterCriteria.subtype) {
         result = result.filter(item =>
-          item.card?.subtypes?.includes(advancedFilterCriteria.subtype!)
+          Array.isArray((item as any).subtypes) && (item as any).subtypes.includes(advancedFilterCriteria.subtype!)
         );
       }
 
@@ -504,7 +505,7 @@ export default function MyCollection() {
       newUpdates.set(cardId, newQuantity);
     }
     setLocalCollectionUpdates(newUpdates);
-
+    let backendFailed = false;
     // Update the database in the background without refreshing the page
     try {
       const response = await fetch('/api/collections/update-quantity', {
@@ -522,14 +523,13 @@ export default function MyCollection() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Error updating quantity:', errorData.error);
+        setPriceUpdateMessage(errorData.error || 'Failed to update quantity');
+        backendFailed = true;
       } else {
         // Update the price timestamp to reflect the latest data
         updatePriceTimestamp();
         updatePriceInfoStates();
-
         // Fetch updated collection values to update the total value display
-        // without requiring a full page refresh
         try {
           const valuesResponse = await fetch(`/api/collections?groupName=${encodeURIComponent(activeGroup)}`);
           if (valuesResponse.ok) {
@@ -540,16 +540,12 @@ export default function MyCollection() {
               valuesData.collection.forEach((item: any) => {
                 priceMap.set(item.card_id, item.market_price || 0);
               });
-
               // Update the local collection with new prices
               const priceUpdates = new Map(newUpdates);
               currentCollection.forEach(item => {
                 if (priceMap.has(item.card_id)) {
                   const updatedPrice = priceMap.get(item.card_id);
                   if (updatedPrice !== item.market_price) {
-                    // Store the updated price in our local updates
-                    priceUpdates.set(`price_${item.card_id}`, updatedPrice);
-                    // Store in BOTH our caches for maximum persistence
                     storeCardPrice(item.card_id, updatedPrice);
                     storePrice(item.card_id, updatedPrice);
                   }
@@ -559,17 +555,19 @@ export default function MyCollection() {
             }
           }
         } catch (priceErr) {
-          console.error('Error updating local prices after quantity change:', priceErr);
+          setPriceUpdateMessage('Error updating local prices');
         }
       }
-
-      // No need to refresh the entire collection
-      // The UI is already updated with localCollectionUpdates
-      setLastRefreshTime(Date.now());
     } catch (error) {
-      console.error('Error updating quantity:', error);
+      setPriceUpdateMessage('Network error updating quantity');
+      backendFailed = true;
     }
-  }, [localCollectionUpdates, activeType, activeGroup, currentCollection, updatePriceInfoStates]);
+    if (backendFailed) {
+      // Reset local updates and refresh collections to stay in sync
+      setLocalCollectionUpdates(new Map());
+      await refreshCollections();
+    }
+  }, [activeType, activeGroup, localCollectionUpdates, currentCollection, updatePriceTimestamp, updatePriceInfoStates, refreshCollections]);
 
   // Handle opening the create group modal
   const handleOpenCreateGroupModal = () => {
@@ -637,7 +635,18 @@ export default function MyCollection() {
 
   // Handle updating market prices
   const handleUpdateMarketPrices = useCallback(async (isAutoUpdate = false) => {
+    // Check if we're already updating prices
     if (isUpdatingPrices) return;
+
+    // Check if user is authenticated
+    if (!session) {
+      console.log('[MyCollection] Authentication required to update prices');
+      if (!isAutoUpdate) {
+        setPriceUpdateMessage('Authentication required to update prices');
+        setTimeout(() => setPriceUpdateMessage(null), 3000);
+      }
+      return;
+    }
 
     setIsUpdatingPrices(true);
 
@@ -651,13 +660,29 @@ export default function MyCollection() {
       const response = await fetch(`/api/collections/update-prices?groupName=${encodeURIComponent(activeGroup)}`);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('[MyCollection] Error response from update-prices API:', errorData);
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          // Try to parse the error response as JSON
+          const errorData = await response.json();
+          console.error('[MyCollection] Error response from update-prices API:', errorData);
+          errorMessage = errorData.error || errorMessage;
+        } catch (parseError) {
+          // If we can't parse the response as JSON, use the status text
+          console.error('[MyCollection] Failed to parse error response:', parseError);
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
-      console.log('[MyCollection] Response from update-prices API:', data);
+      // Try to parse the response as JSON
+      let data;
+      try {
+        data = await response.json();
+        console.log('[MyCollection] Response from update-prices API:', data);
+      } catch (parseError) {
+        console.error('[MyCollection] Failed to parse success response:', parseError);
+        throw new Error('Invalid response from server');
+      }
 
       // Only show success message for manual updates
       if (!isAutoUpdate) {
@@ -741,7 +766,7 @@ export default function MyCollection() {
     } finally {
       setIsUpdatingPrices(false);
     }
-  }, [activeGroup, updatePriceInfoStates, updatePriceTimestamp, setHasAutoUpdated, localCollectionUpdates, currentCollection]);
+  }, [activeGroup, updatePriceInfoStates, updatePriceTimestamp, setHasAutoUpdated, localCollectionUpdates, currentCollection, session]);
 
   // Effect to check if prices need to be updated when component mounts
   useEffect(() => {
@@ -876,8 +901,13 @@ export default function MyCollection() {
                 <h2 className="text-lg font-semibold text-gray-800 mb-4 text-center">Welcome Back</h2>
 
                 {/* Auth form with custom styling */}
-                <div className="auth-form-container">
+                <div className="auth-form-container mb-4">
                   <AuthForm />
+                </div>
+
+                {/* Google Sign In for local dev */}
+                <div className="mb-4">
+                  <GoogleSignIn />
                 </div>
 
                 {/* Additional information - more compact */}
