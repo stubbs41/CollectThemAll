@@ -48,14 +48,31 @@ export const getProxiedImageUrl = (originalUrl: string | undefined | null): stri
         // Encode the original URL to safely pass it as a path parameter
         const encodedUrl = encodeURIComponent(originalUrl);
         const proxiedUrl = `/api/image-proxy/${encodedUrl}`;
-
-        // Cache the result
         imageUrlCache.set(originalUrl, proxiedUrl);
         return proxiedUrl;
     }
 
-    // If it's already a local path or from another domain, return it as is
-    return originalUrl;
+    // If it's a filename (no slashes), assume it's a local card image in /data/cards/
+    if (!originalUrl.includes('/') && originalUrl.match(/\.(png|jpg|jpeg|webp|svg)$/i)) {
+        const localUrl = `/data/cards/${originalUrl}`;
+        imageUrlCache.set(originalUrl, localUrl);
+        return localUrl;
+    }
+
+    // If it's a relative path (doesn't start with / or http), treat as /data/cards/
+    if (!originalUrl.startsWith('/') && !originalUrl.startsWith('http')) {
+        const localUrl = `/data/cards/${originalUrl}`;
+        imageUrlCache.set(originalUrl, localUrl);
+        return localUrl;
+    }
+
+    // If it's already a local path, return as is
+    if (originalUrl.startsWith('/')) {
+        return originalUrl;
+    }
+
+    // Fallback to placeholder
+    return '/placeholder-card.png';
 };
 
 // Preload multiple images in the background
